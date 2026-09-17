@@ -135,7 +135,10 @@ function splitTupleValues(tupleStr: string): string[] {
 /**
  * Parses individual SQL token into JS types (string, number, boolean, null, json).
  */
-function parseSqlToken(token: string): any {
+function parseSqlToken(token: any): any {
+  if (token === undefined || token === null) return null;
+  if (typeof token !== 'string') return token;
+
   token = token.trim();
   // Strip Postgres type casts like ::jsonb, ::text, etc.
   token = token.replace(/::[a-zA-Z0-9_]+$/i, '').trim();
@@ -149,7 +152,7 @@ function parseSqlToken(token: string): any {
     const arrayBodyMatch = token.match(/^(?:TO_JSONB\s*\(\s*)?ARRAY\s*\[([\s\S]*)\](?:\s*\))?$/i);
     if (arrayBodyMatch) {
       const items = splitTupleValues(arrayBodyMatch[1]);
-      return items.map(parseSqlToken);
+      return items.map((it) => parseSqlToken(it));
     }
   }
 
@@ -170,7 +173,8 @@ function parseSqlToken(token: string): any {
 
   // Number
   if (/^-?[0-9]+(\.[0-9]+)?$/.test(token)) {
-    return Number(token);
+    const num = Number(token);
+    return isNaN(num) ? token : num;
   }
 
   return token;

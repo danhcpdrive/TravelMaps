@@ -176,7 +176,8 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
       }, 1400);
     } catch (err: any) {
       setIsProcessing(false);
-      setErrorMsg(`Lỗi định dạng JSON: ${err.message}`);
+      const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+      setErrorMsg(`Lỗi định dạng JSON: ${msg}`);
     }
   };
 
@@ -272,7 +273,8 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
       }, 1500);
     } catch (err: any) {
       setIsProcessing(false);
-      setErrorMsg(`Lỗi trong quá trình Import SQL: ${err.message}`);
+      const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+      setErrorMsg(`Lỗi trong quá trình Import SQL: ${msg}`);
     }
   };
 

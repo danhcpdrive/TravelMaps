@@ -21,6 +21,7 @@ import {
   saveLocalCities,
   getSupabaseClient,
   upsertPlaceToSupabase,
+  bulkUpsertPlacesToSupabase,
   softDeletePlaceInSupabase,
   checkSupabaseStatus,
   fetchTripsFromSupabase,
@@ -55,7 +56,7 @@ import { AdminReportManagerModal } from './components/AdminReportManagerModal';
 import { TravelReportModal } from './components/TravelReportModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { AdminUserManagerModal } from './components/AdminUserManagerModal';
-import { Map, List, AlertTriangle } from 'lucide-react';
+import { Map as MapIcon, List, AlertTriangle } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => getCurrentUser());
@@ -489,7 +490,7 @@ export default function App() {
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <Map className="w-4 h-4" />
+          <MapIcon className="w-4 h-4" />
           <span>Bản đồ</span>
         </button>
 
@@ -711,10 +712,8 @@ export default function App() {
             }
           }
 
-          // 2. Now upsert places safely
-          for (const p of imported) {
-            await upsertPlaceToSupabase(p);
-          }
+          // 2. Bulk upsert all places with fast batching and fallback
+          await bulkUpsertPlacesToSupabase(imported);
 
           await loadData();
         }}

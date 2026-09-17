@@ -248,17 +248,26 @@ export function splitPlaceToTables(place: TravelPlace): {
   location: TravelLocationRecord;
   detail: TravelLocationDetailRecord;
 } {
+  const rawLat = place?.coordinates?.lat !== undefined ? place.coordinates.lat : (place as any)?.lat;
+  const rawLng = place?.coordinates?.lng !== undefined ? place.coordinates.lng : (place as any)?.lng;
+  const parsedLat = Number(rawLat);
+  const parsedLng = Number(rawLng);
+  const lat = !isNaN(parsedLat) && parsedLat !== 0 ? parsedLat : 16.05441235;
+  const lng = !isNaN(parsedLng) && parsedLng !== 0 ? parsedLng : 108.20223841;
+
+  const cityIdStr = place?.city_id !== undefined && place?.city_id !== null ? String(place.city_id).trim() : null;
+
   const location: TravelLocationRecord = {
-    id: place.id,
-    name: place.name,
-    group_id: place.group,
-    city_id: place.city_id && place.city_id.trim() !== '' ? place.city_id.trim() : null,
-    category: place.category || 'Địa điểm',
-    lat: Number(place.coordinates.lat),
-    lng: Number(place.coordinates.lng),
-    address: place.address || '',
-    phone: place.phone || '',
-    contact: place.contact || '',
+    id: String(place.id),
+    name: String(place.name || 'Địa điểm'),
+    group_id: normalizeServiceGroup(place.group),
+    city_id: cityIdStr && cityIdStr !== '' ? cityIdStr : null,
+    category: String(place.category || 'Địa điểm'),
+    lat,
+    lng,
+    address: String(place.address || ''),
+    phone: place.phone ? String(place.phone) : '',
+    contact: place.contact ? String(place.contact) : '',
     checked: Boolean(place.checked),
     visited_at: place.visitedAt || (place.checked ? new Date().toISOString() : null),
     is_favorite: Boolean(place.isFavorite),
@@ -268,17 +277,17 @@ export function splitPlaceToTables(place: TravelPlace): {
 
   const detail: TravelLocationDetailRecord = {
     id: `detail-${place.id}`,
-    location_id: place.id,
-    rating: place.rating ? Number(place.rating) : 4.8,
-    price_range: place.priceRange || '',
-    opening_hours: place.openingHours || '',
-    best_time_to_visit: place.bestTimeToVisit || '',
-    notes: place.notes || '',
-    travel_tips: place.travelTips || '',
-    specialties: place.specialties || '',
-    thumbnail_url: place.thumbnailUrl || '',
-    gallery_urls: Array.isArray(place.galleryUrls) ? place.galleryUrls : [],
-    website_url: place.website || '',
+    location_id: String(place.id),
+    rating: place.rating !== undefined && place.rating !== null ? Number(place.rating) : 4.8,
+    price_range: place.priceRange ? String(place.priceRange) : '',
+    opening_hours: place.openingHours ? String(place.openingHours) : '',
+    best_time_to_visit: place.bestTimeToVisit ? String(place.bestTimeToVisit) : '',
+    notes: place.notes ? String(place.notes) : '',
+    travel_tips: place.travelTips ? String(place.travelTips) : '',
+    specialties: place.specialties ? String(place.specialties) : '',
+    thumbnail_url: place.thumbnailUrl ? String(place.thumbnailUrl) : '',
+    gallery_urls: Array.isArray(place.galleryUrls) ? place.galleryUrls.map(String) : [],
+    website_url: place.website ? String(place.website) : '',
     updated_at: new Date().toISOString(),
   };
 
@@ -574,6 +583,73 @@ export const upsertPlaceToSupabase = async (place: TravelPlace): Promise<boolean
   } catch (err) {
     console.error('upsertPlaceToSupabase error:', err);
     return false;
+  }
+};
+
+/**
+ * Bulk Upsert multiple places into Supabase efficiently with batching and offline-first fallback.
+ */
+export const bulkUpsertPlacesToSupabase = async (
+  newPlaces: TravelPlace[]
+): Promise<{ success: boolean; count: number; error?: string }> => {
+  if (!newPlaces || newPlaces.length === 0) {
+    return { success: true, count: 0 };
+  }
+
+  // 1. Merge and save to LocalStorage first (instant offline availability)
+  const currentPlaces = loadLocalPlaces();
+  const placesMap = new Map<string, TravelPlace>();
+  currentPlaces.forEach((p) => placesMap.set(String(p.id), p));
+  newPlaces.forEach((p) => placesMap.set(String(p.id), p));
+  const mergedPlaces = Array.from(placesMap.values());
+  saveLocalPlaces(mergedPlaces);
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return { success: true, count: newPlaces.length };
+  }
+
+  try {
+    const locationsToUpsert: TravelLocationRecord[] = [];
+    const detailsToUpsert: TravelLocationDetailRecord[] = [];
+
+    for (const place of newPlaces) {
+      const { location, detail } = splitPlaceToTables(place);
+      locationsToUpsert.push(location);
+      detailsToUpsert.push(detail);
+    }
+
+    // Chunk size of 50 to prevent payload size limits
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < locationsToUpsert.length; i += CHUNK_SIZE) {
+      const locChunk = locationsToUpsert.slice(i, i + CHUNK_SIZE);
+      const detChunk = detailsToUpsert.slice(i, i + CHUNK_SIZE);
+
+      const { error: locErr } = await client
+        .from('travel_locations')
+        .upsert(locChunk, { onConflict: 'id' });
+
+      if (locErr) {
+        if (isMissingTableOrSchemaError(locErr)) {
+          console.warn('Bảng travel_locations chưa được khởi tạo trên Supabase, dữ liệu đã lưu an toàn vào LocalStorage.');
+          return { success: true, count: newPlaces.length };
+        }
+        console.warn('Lỗi bulk upsert locations lên Supabase:', locErr);
+      }
+
+      const { error: detErr } = await client
+        .from('travel_location_details')
+        .upsert(detChunk, { onConflict: 'location_id' });
+
+      if (detErr && !isMissingTableOrSchemaError(detErr)) {
+        console.warn('Lỗi bulk upsert location_details lên Supabase:', detErr);
+      }
+    }
+
+    return { success: true, count: newPlaces.length };
+  } catch (err: any) {
+    console.warn('bulkUpsertPlacesToSupabase exception (dữ liệu đã an toàn trên LocalStorage):', err);
+    return { success: true, count: newPlaces.length };
   }
 };
 
