@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TravelPlace, UserProfile } from '../types';
 import { SERVICE_GROUPS_MAP, formatCoordinate } from '../lib/geoUtils';
+import { PlaceSvgThumbnail } from './PlaceSvgThumbnail';
 import {
   X,
   MapPin,
@@ -62,6 +63,11 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
   onViewOnMap,
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isImageError, setIsImageError] = useState(false);
+
+  useEffect(() => {
+    setIsImageError(false);
+  }, [place?.id]);
 
   if (!place) return null;
 
@@ -97,17 +103,15 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
       <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden text-slate-900 animate-in fade-in zoom-in duration-200 my-auto max-h-[90vh] flex flex-col">
         
-        {/* Top Image Banner (if available) */}
-        {place.thumbnailUrl && (
+        {/* Top Header Banner: Real Image or High Quality SVG Vector Banner */}
+        {place.thumbnailUrl && !isImageError ? (
           <div className="relative h-48 sm:h-56 w-full bg-slate-100 overflow-hidden group">
             <img
               src={place.thumbnailUrl}
               alt={place.name}
               className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
               referrerPolicy="no-referrer"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
+              onError={() => setIsImageError(true)}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
 
@@ -166,27 +170,18 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
               <h2 className="text-lg sm:text-xl font-bold leading-tight drop-shadow-md">{place.name}</h2>
             </div>
           </div>
-        )}
+        ) : (
+          <div className="relative h-44 sm:h-52 w-full overflow-hidden">
+            <PlaceSvgThumbnail
+              group={place.group}
+              category={place.category}
+              name={place.name}
+              variant="banner"
+              className="w-full h-full"
+            />
 
-        {/* Fallback Header if NO Thumbnail */}
-        {!place.thumbnailUrl && (
-          <div className="flex items-start justify-between p-5 border-b border-slate-200 bg-slate-50">
-            <div className="space-y-1.5 pr-4 flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold rounded-md border ${groupMeta.badgeBg}`}>
-                  {groupMeta.icon} {groupMeta.label}
-                </span>
-                {place.rating && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-amber-50 text-amber-800 border border-amber-200">
-                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                    {place.rating} / 5.0
-                  </span>
-                )}
-              </div>
-              <h2 className="text-xl font-bold text-slate-900 leading-snug">{place.name}</h2>
-            </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
+            {/* Close & Favorite Floating */}
+            <div className="absolute top-3 right-3 flex items-center gap-2 z-20">
               <button
                 type="button"
                 onClick={() => {
@@ -195,22 +190,39 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
                     'lưu địa điểm vào danh sách yêu thích'
                   );
                 }}
-                className={`p-2 rounded-xl border transition cursor-pointer ${
+                className={`p-2 rounded-xl backdrop-blur-md transition cursor-pointer ${
                   place.isFavorite
-                    ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
-                    : 'bg-white text-slate-400 border-slate-200 hover:text-rose-500 hover:bg-slate-50'
+                    ? 'bg-rose-500 text-white shadow-lg'
+                    : 'bg-white/80 text-slate-700 hover:text-rose-500 hover:bg-white'
                 }`}
+                title={place.isFavorite ? 'Đã yêu thích' : 'Thêm vào yêu thích'}
               >
-                <Heart className={`w-5 h-5 ${place.isFavorite ? 'fill-rose-500' : ''}`} />
+                <Heart className={`w-4 h-4 ${place.isFavorite ? 'fill-white' : ''}`} />
               </button>
 
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200 transition cursor-pointer"
+                className="p-2 rounded-xl bg-white/80 hover:bg-white text-slate-700 transition cursor-pointer backdrop-blur-md"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
+            </div>
+
+            {/* Bottom Title inside SVG Banner */}
+            <div className="absolute bottom-3 left-4 right-4 text-white z-20">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold rounded-md border ${groupMeta.badgeBg}`}>
+                  {groupMeta.icon} {groupMeta.label}
+                </span>
+                {place.rating && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-amber-500 text-white">
+                    <Star className="w-3.5 h-3.5 fill-white text-white" />
+                    {place.rating} / 5.0
+                  </span>
+                )}
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold leading-tight drop-shadow-md">{place.name}</h2>
             </div>
           </div>
         )}

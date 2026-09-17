@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { TravelPlace, FilterOptions, ServiceGroupInfo, TravelCity } from '../types';
 import { SERVICE_GROUPS, SERVICE_GROUPS_MAP, DISTANCE_FILTER_OPTIONS } from '../lib/geoUtils';
+import { PlaceSvgThumbnail } from './PlaceSvgThumbnail';
 import {
   Search,
   CheckCircle2,
@@ -62,6 +63,7 @@ export const TravelList: React.FC<TravelListProps> = ({
   isSidebarCollapsed,
 }) => {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const listContainerRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef(0);
 
@@ -283,7 +285,7 @@ export const TravelList: React.FC<TravelListProps> = ({
             <button
               type="button"
               onClick={onToggleSidebarCollapse}
-              className="hidden md:flex p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200 transition cursor-pointer shrink-0"
+              className="hidden lg:flex p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200 transition cursor-pointer shrink-0"
               title={isSidebarCollapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -580,7 +582,7 @@ export const TravelList: React.FC<TravelListProps> = ({
       <div
         ref={listContainerRef}
         onScroll={handleListScroll}
-        className="flex-1 overflow-y-auto divide-y divide-slate-100 pb-20 md:pb-6 scroll-smooth"
+        className="flex-1 overflow-y-auto divide-y divide-slate-100 pb-20 lg:pb-6 scroll-smooth"
       >
         {places.length === 0 ? (
           <div className="p-6 text-center space-y-2">
@@ -610,24 +612,27 @@ export const TravelList: React.FC<TravelListProps> = ({
                     : 'hover:bg-slate-50/80 border-l-4 border-l-transparent'
                 }`}
               >
-                {/* Thumbnail Image */}
-                {place.thumbnailUrl ? (
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-slate-200 relative shadow-2xs">
+                {/* Thumbnail Image with SVG Vector Fallback */}
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-slate-200/80 relative shadow-2xs">
+                  {place.thumbnailUrl && !imageErrors[place.id] ? (
                     <img
                       src={place.thumbnailUrl}
                       alt={place.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
                       referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
+                      onError={() => {
+                        setImageErrors((prev) => ({ ...prev, [place.id]: true }));
                       }}
                     />
-                  </div>
-                ) : (
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl shrink-0 bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
-                    <ImageIcon className="w-4 h-4" />
-                  </div>
-                )}
+                  ) : (
+                    <PlaceSvgThumbnail
+                      group={place.group}
+                      category={place.category}
+                      name={place.name}
+                      variant="thumbnail"
+                    />
+                  )}
+                </div>
 
                 {/* Place Info */}
                 <div className="flex-1 min-w-0 space-y-0.5 sm:space-y-1">

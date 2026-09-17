@@ -433,8 +433,8 @@ export default function App() {
         
         {/* Desktop Left Sidebar / Mobile List View */}
         <div
-          className={`w-full md:w-[380px] lg:w-[430px] h-full shrink-0 ${
-            mobileTab === 'list' ? 'block' : 'hidden md:block'
+          className={`w-full lg:w-[380px] lg:w-[430px] h-full shrink-0 ${
+            mobileTab === 'list' ? 'block' : 'hidden lg:block'
           }`}
         >
           <TravelList
@@ -464,7 +464,7 @@ export default function App() {
         </div>
 
         {/* Right Google Maps View */}
-        <div className={`flex-1 h-full relative ${mobileTab === 'map' ? 'block' : 'hidden md:block'}`}>
+        <div className={`flex-1 h-full relative ${mobileTab === 'map' ? 'block' : 'hidden lg:block'}`}>
           <TravelMapView
             places={filteredPlaces}
             selectedPlace={selectedPlace}
@@ -482,7 +482,7 @@ export default function App() {
       {/* Mobile Full-Width Bottom Navigation Bar (Flat, Light Translucent Glass) */}
       <div 
         id="mobile-bottom-nav-bar"
-        className="md:hidden fixed bottom-0 left-0 right-0 w-full z-30 bg-white/80 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] grid grid-cols-2 select-none"
+        className="lg:hidden fixed bottom-0 left-0 right-0 w-full z-30 bg-white/80 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] grid grid-cols-2 select-none"
       >
         <button
           type="button"

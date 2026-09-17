@@ -77,10 +77,19 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
     if (!mapInstanceRef.current) {
       // Default center: Da Nang / Central Vietnam
-      const selLat = Number(selectedPlace?.coordinates?.lat);
-      const selLng = Number(selectedPlace?.coordinates?.lng);
-      const defaultLat = (!isNaN(selLat) && selLat !== 0) ? selLat : 16.0544;
-      const defaultLng = (!isNaN(selLng) && selLng !== 0) ? selLng : 108.2022;
+      let defaultLat = 16.0544;
+      let defaultLng = 108.2022;
+
+      if (selectedPlace?.coordinates) {
+        const latVal = Number(selectedPlace.coordinates.lat);
+        const lngVal = Number(selectedPlace.coordinates.lng);
+        if (!isNaN(latVal) && latVal !== 0) {
+          defaultLat = latVal;
+        }
+        if (!isNaN(lngVal) && lngVal !== 0) {
+          defaultLng = lngVal;
+        }
+      }
 
       const map = L.map(mapContainerRef.current, {
         center: [defaultLat, defaultLng],
@@ -146,14 +155,15 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
     // Render new markers
     places.forEach((place) => {
-      const pLat = Number(place?.coordinates?.lat);
-      const pLng = Number(place?.coordinates?.lng);
-      if (isNaN(pLat) || isNaN(pLng)) return;
+      try {
+        const pLat = Number(place?.coordinates?.lat);
+        const pLng = Number(place?.coordinates?.lng);
+        if (isNaN(pLat) || isNaN(pLng) || pLat === 0 || pLng === 0) return;
 
-      const isSelected = selectedPlace?.id === place.id;
-      const isChecked = place.checked;
-      const groupMeta = SERVICE_GROUPS_MAP[place.group] || SERVICE_GROUPS_MAP.du_lich;
-      const pinColor = groupMeta.markerColor;
+        const isSelected = selectedPlace?.id === place.id;
+        const isChecked = place.checked;
+        const groupMeta = SERVICE_GROUPS_MAP[place.group] || SERVICE_GROUPS_MAP.du_lich;
+        const pinColor = groupMeta.markerColor;
 
       // Group SVG Icon
       let iconInner = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>`;
@@ -342,6 +352,9 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
       });
 
       markersRef.current[place.id] = marker;
+      } catch (err) {
+        console.error("Error rendering marker for place:", place?.id, err);
+      }
     });
 
     // User location marker
@@ -349,7 +362,7 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
       const uLat = Number(userLocation.lat);
       const uLng = Number(userLocation.lng);
 
-      if (!isNaN(uLat) && !isNaN(uLng)) {
+      if (!isNaN(uLat) && uLat !== 0 && !isNaN(uLng) && uLng !== 0) {
         if (userMarkerRef.current) {
           userMarkerRef.current.remove();
         }
@@ -366,10 +379,14 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
           iconAnchor: [12, 12],
         });
 
-        userMarkerRef.current = L.marker([uLat, uLng], {
-          icon: userIcon,
-          zIndexOffset: 1000,
-        }).addTo(map);
+        try {
+          userMarkerRef.current = L.marker([uLat, uLng], {
+            icon: userIcon,
+            zIndexOffset: 1000,
+          }).addTo(map);
+        } catch (err) {
+          console.error("Error adding user location marker:", err);
+        }
       }
     }
   }, [places, selectedPlace?.id, userLocation]);
@@ -381,12 +398,23 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
     const uLat = Number(userLocation.lat);
     const uLng = Number(userLocation.lng);
-    if (isNaN(uLat) || isNaN(uLng)) return;
+    if (isNaN(uLat) || uLat === 0 || isNaN(uLng) || uLng === 0) return;
 
-    map.flyTo([uLat, uLng], 16, {
-      animate: true,
-      duration: 1.2,
-    });
+    const size = map.getSize();
+    if (size.x === 0 || size.y === 0) {
+      // Map is hidden, just setView without animation to prevent math crash
+      map.setView([uLat, uLng], 16);
+      return;
+    }
+
+    try {
+      map.flyTo([uLat, uLng], 16, {
+        animate: true,
+        duration: 1.2,
+      });
+    } catch (err) {
+      console.error("Error in userLocation flyTo:", err);
+    }
   }, [userLocation?.lat, userLocation?.lng, userLocation?.timestamp]);
 
   // Center map and automatically zoom in when a place is selected
@@ -396,20 +424,41 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
     const sLat = Number(selectedPlace.coordinates?.lat);
     const sLng = Number(selectedPlace.coordinates?.lng);
-    if (isNaN(sLat) || isNaN(sLng)) return;
+    if (isNaN(sLat) || sLat === 0 || isNaN(sLng) || sLng === 0) return;
 
-    const currentZoom = map.getZoom();
-    const targetZoom = Math.max(currentZoom, 15);
+    // We use setTimeout to ensure that if the user is on mobile and the tab just switched
+    // from 'list' to 'map', the DOM has time to update the display from 'none' to 'block'
+    // and the ResizeObserver has time to call invalidateSize(). This guarantees the map
+    // flies to the exact center of the screen.
+    const timeoutId = setTimeout(() => {
+      // Re-check map in case it was unmounted
+      if (!mapInstanceRef.current) return;
+      
+      const currentZoom = Number(map.getZoom()) || 6;
+      const targetZoom = Math.max(currentZoom, 15);
 
-    map.flyTo([sLat, sLng], targetZoom, {
-      animate: true,
-      duration: 1.0,
-    });
+      const size = map.getSize();
+      if (size.x === 0 || size.y === 0) {
+        // Map is still hidden, just setView without animation to prevent math crash
+        map.setView([sLat, sLng], targetZoom);
+      } else {
+        try {
+          map.flyTo([sLat, sLng], targetZoom, {
+            animate: true,
+            duration: 1.0,
+          });
+        } catch (err) {
+          console.error("Error in selectedPlace flyTo:", err);
+        }
+      }
 
-    const marker = markersRef.current[selectedPlace.id];
-    if (marker) {
-      marker.openPopup();
-    }
+      const marker = markersRef.current[selectedPlace.id];
+      if (marker) {
+        marker.openPopup();
+      }
+    }, 150);
+
+    return () => clearTimeout(timeoutId);
   }, [selectedPlace?.id, selectedPlace?.coordinates?.lat, selectedPlace?.coordinates?.lng]);
 
   // Fit all markers in viewport
@@ -417,19 +466,33 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
     const map = mapInstanceRef.current;
     if (!map || !places || places.length === 0) return;
 
-    const validPoints: [number, number][] = [];
+    const validLatLngs: L.LatLng[] = [];
     places.forEach((p) => {
       const lat = Number(p.coordinates?.lat);
       const lng = Number(p.coordinates?.lng);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        validPoints.push([lat, lng]);
+      if (!isNaN(lat) && lat !== 0 && !isNaN(lng) && lng !== 0) {
+        try {
+          validLatLngs.push(L.latLng(lat, lng));
+        } catch (e) {
+          console.error("Invalid LatLng skipped in handleFitBounds:", lat, lng, e);
+        }
       }
     });
 
-    if (validPoints.length === 0) return;
+    if (validLatLngs.length === 0) return;
 
-    const bounds = L.latLngBounds(validPoints);
-    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    const size = map.getSize();
+    if (size.x <= 100 || size.y <= 100) {
+      // Map is too small or hidden, do not fit bounds
+      return;
+    }
+
+    try {
+      const bounds = L.latLngBounds(validLatLngs);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    } catch (e) {
+      console.error("Failed to fitBounds:", e);
+    }
   };
 
   // Center user location on button click
@@ -439,11 +502,20 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
     } else if (userLocation && mapInstanceRef.current) {
       const uLat = Number(userLocation.lat);
       const uLng = Number(userLocation.lng);
-      if (!isNaN(uLat) && !isNaN(uLng)) {
-        mapInstanceRef.current.flyTo([uLat, uLng], 16, {
-          animate: true,
-          duration: 1.2,
-        });
+      if (!isNaN(uLat) && uLat !== 0 && !isNaN(uLng) && uLng !== 0) {
+        const size = mapInstanceRef.current.getSize();
+        if (size.x === 0 || size.y === 0) {
+          mapInstanceRef.current.setView([uLat, uLng], 16);
+        } else {
+          try {
+            mapInstanceRef.current.flyTo([uLat, uLng], 16, {
+              animate: true,
+              duration: 1.2,
+            });
+          } catch (err) {
+            console.error("Error in handleCenterUser flyTo:", err);
+          }
+        }
       }
     }
   };

@@ -109,7 +109,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* DESKTOP MIDDLE MODULE BUTTONS (hidden on mobile, rendered cleanly on md+) */}
-          <div className="hidden md:flex items-center gap-1.5 overflow-x-auto no-scrollbar min-w-0 flex-1 justify-center px-2">
+          <div className="hidden lg:flex items-center gap-1.5 overflow-x-auto no-scrollbar min-w-0 flex-1 justify-center px-2">
             {(isUser || isAdmin) && (
               <div className="flex items-center gap-1.5 shrink-0 text-xs">
                 
@@ -258,7 +258,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* MOBILE SUB-ROW: Dedicated Module Scrollable Toolbar (only visible on mobile < md) */}
         {(isUser || isAdmin) && (
-          <div className="md:hidden flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5 border-t border-slate-100 text-xs">
+          <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5 border-t border-slate-100 text-xs">
             {/* 1. Lịch Trình */}
             <button
               type="button"
