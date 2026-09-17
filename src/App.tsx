@@ -479,32 +479,44 @@ export default function App() {
 
       </div>
 
-      {/* Mobile Floating Bottom Navigation Switch */}
-      <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-30 bg-white/95 border border-slate-200 p-1.5 rounded-2xl shadow-xl flex items-center space-x-1 text-xs backdrop-blur-md">
+      {/* Mobile Full-Width Bottom Navigation Bar (Flat, Light Translucent Glass) */}
+      <div 
+        id="mobile-bottom-nav-bar"
+        className="md:hidden fixed bottom-0 left-0 right-0 w-full z-30 bg-white/80 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] grid grid-cols-2 select-none"
+      >
         <button
           type="button"
           onClick={() => setMobileTab('map')}
-          className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+          className={`py-3 px-2 flex items-center justify-center gap-2 text-xs font-bold transition-colors cursor-pointer border-r border-slate-200/70 active:bg-slate-100/60 ${
             mobileTab === 'map'
-              ? 'bg-teal-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'text-teal-700 bg-teal-50/70 border-b-2 border-b-teal-600 font-extrabold'
+              : 'text-slate-600 hover:text-slate-900 border-b-2 border-b-transparent hover:bg-white/50'
           }`}
         >
-          <MapIcon className="w-4 h-4" />
+          <MapIcon className={`w-4 h-4 transition-transform ${mobileTab === 'map' ? 'text-teal-600 scale-105' : 'text-slate-500'}`} />
           <span>Bản đồ</span>
         </button>
 
         <button
           type="button"
           onClick={() => setMobileTab('list')}
-          className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+          className={`py-3 px-2 flex items-center justify-center gap-2 text-xs font-bold transition-colors cursor-pointer active:bg-slate-100/60 ${
             mobileTab === 'list'
-              ? 'bg-teal-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'text-teal-700 bg-teal-50/70 border-b-2 border-b-teal-600 font-extrabold'
+              : 'text-slate-600 hover:text-slate-900 border-b-2 border-b-transparent hover:bg-white/50'
           }`}
         >
-          <List className="w-4 h-4" />
-          <span>Danh sách ({filteredPlaces.length})</span>
+          <List className={`w-4 h-4 transition-transform ${mobileTab === 'list' ? 'text-teal-600 scale-105' : 'text-slate-500'}`} />
+          <span>Danh sách</span>
+          <span
+            className={`px-1.5 py-0.5 rounded-sm text-[11px] font-bold ${
+              mobileTab === 'list'
+                ? 'bg-teal-600 text-white'
+                : 'bg-slate-200/80 text-slate-700'
+            }`}
+          >
+            {filteredPlaces.length}
+          </span>
         </button>
       </div>
 
