@@ -18,6 +18,8 @@ import {
   loadLocalGroups,
   fetchCitiesFromSupabase,
   loadLocalCities,
+  saveLocalCities,
+  getSupabaseClient,
   upsertPlaceToSupabase,
   softDeletePlaceInSupabase,
   checkSupabaseStatus,
@@ -74,7 +76,7 @@ export default function App() {
     sortBy: 'rating',
   });
 
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; timestamp?: number } | null>(null);
   const [hasUserLocation, setHasUserLocation] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -188,7 +190,7 @@ export default function App() {
     return places.filter((p) => p.isFavorite).length;
   }, [places]);
 
-  // Get user GPS location
+  // Get user GPS location & Zoom to it
   const handleGetUserLocation = () => {
     if (!navigator.geolocation) {
       alert('Trình duyệt của bạn không hỗ trợ định vị GPS.');
@@ -199,9 +201,10 @@ export default function App() {
       (pos) => {
         const userLat = pos.coords.latitude;
         const userLng = pos.coords.longitude;
-        setUserLocation({ lat: userLat, lng: userLng });
+        setUserLocation({ lat: userLat, lng: userLng, timestamp: Date.now() });
         setHasUserLocation(true);
         setFilters((prev) => ({ ...prev, sortBy: 'distance' }));
+        setMobileTab('map');
       },
       (err) => {
         alert(`Không thể lấy vị trí: ${err.message}. Vui lòng cấp quyền truy cập vị trí.`);
@@ -469,6 +472,7 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             onOpenDetailModal={(place) => setDetailPlace(place)}
             userLocation={userLocation}
+            onGetUserLocation={handleGetUserLocation}
           />
         </div>
 
@@ -661,14 +665,34 @@ export default function App() {
         onDeleteExpense={handleDeleteExpense}
       />
 
-      {/* Import / Export JSON */}
+      {/* Import / Export JSON & SQL */}
       <ImportExportModal
         isOpen={isImportExportOpen}
         onClose={() => setIsImportExportOpen(false)}
         places={places}
-        onImport={async (imported) => {
+        onImport={async (imported, extraData) => {
           for (const p of imported) {
             await upsertPlaceToSupabase(p);
+          }
+          if (extraData?.cities && extraData.cities.length > 0) {
+            saveLocalCities(extraData.cities);
+            const sb = getSupabaseClient();
+            if (sb) {
+              try {
+                await sb.from('travel_cities').upsert(
+                  extraData.cities.map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    code: c.code || '',
+                    lat: c.lat || 0,
+                    lng: c.lng || 0,
+                    sort_order: c.sort_order || 0,
+                  }))
+                );
+              } catch (e) {
+                console.warn('Failed to upsert cities in Supabase:', e);
+              }
+            }
           }
           await loadData();
         }}

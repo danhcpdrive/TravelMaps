@@ -209,8 +209,14 @@ export function mapRowToPlace(row: any): TravelPlace {
     cityName: row.city_name || row.cityName || '',
     category: row.category || 'Địa điểm tham quan',
     coordinates: {
-      lat: Number(row.lat) || 0,
-      lng: Number(row.lng) || 0,
+      lat: (() => {
+        const parsed = Number(row.lat ?? row.latitude ?? row.coordinates?.lat);
+        return (!isNaN(parsed) && parsed !== 0) ? parsed : 16.0544;
+      })(),
+      lng: (() => {
+        const parsed = Number(row.lng ?? row.longitude ?? row.coordinates?.lng);
+        return (!isNaN(parsed) && parsed !== 0) ? parsed : 108.2022;
+      })(),
     },
     address: row.address || '',
     phone: row.phone || '',

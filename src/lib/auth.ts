@@ -35,20 +35,7 @@ export function verifyPassword(plainPass: string, storedHashOrPlain?: string): b
   } catch (e) {
     console.warn('bcrypt compare error:', e);
   }
-  // So khớp với mật khẩu cũ hoặc phím tắt tài khoản mẫu (admin/admin123, user/user123)
   if (storedHashOrPlain === plainPass) return true;
-  if (
-    (plainPass === 'admin' || plainPass === 'admin123') &&
-    storedHashOrPlain.includes('EbWDlJAsmOK8uQDwTbBtae0tgh9y')
-  ) {
-    return true;
-  }
-  if (
-    (plainPass === 'user' || plainPass === 'user123') &&
-    storedHashOrPlain.includes('3A1QSQlhdo/JNYLv3ygI9eS8n40XtF5KypcCCZYMlq0NXqEphyZRu')
-  ) {
-    return true;
-  }
   return false;
 }
 
@@ -62,45 +49,13 @@ export const GUEST_VIEWER_USER: UserProfile = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-// Danh sách tài khoản demo cho các vai trò cần đăng nhập (Admin & User)
-// Toàn bộ mật khẩu đã được mã hóa Bcrypt ($2b$10$...)
-export const DEMO_ACCOUNTS: Array<UserProfile & { password: string; description: string }> = [
-  {
-    id: 'user-admin-01',
-    name: 'Quản Trị Viên (Admin)',
-    email: 'admin@travelmaps.vn',
-    password: '$2b$10$EbWDlJAsmOK8uQDwTbBtae0tgh9y.kzwj92TfpNhAH6T3O1rIG5WO', // Hash của 'admin123'
-    role: 'admin',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    description: 'Toàn quyền quản trị: Thêm/Sửa/Xóa mọi địa điểm, kiểm duyệt & xử lý báo cáo vi phạm.',
-  },
-  {
-    id: 'user-member-02',
-    name: 'Thành Viên Du Lịch (User)',
-    email: 'user@travelmaps.vn',
-    password: '$2b$10$3A1QSQlhdo/JNYLv3ygI9eS8n40XtF5KypcCCZYMlq0NXqEphyZRu', // Hash của 'user123'
-    role: 'user',
-    avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    createdAt: '2026-02-15T00:00:00.000Z',
-    description: 'Thêm địa điểm tùy ý, lên lịch trình, ghi nhận chi tiêu và báo cáo.',
-  },
-];
+// Không lưu trữ sẵn tài khoản mẫu cứng trong code
+export const DEMO_ACCOUNTS: Array<UserProfile & { password: string }> = [];
 
 // Lấy danh sách tài khoản đã đăng ký trong hệ thống
 export function getRegisteredUsers(): Array<UserProfile & { password?: string }> {
   const local = loadLocalUsers();
-  if (local && local.length > 0) {
-    const merged = [...local];
-    for (const demo of DEMO_ACCOUNTS) {
-      if (!merged.some((u) => u.email.toLowerCase() === demo.email.toLowerCase())) {
-        merged.push(demo);
-      }
-    }
-    return merged;
-  }
-  saveLocalUsers(DEMO_ACCOUNTS);
-  return DEMO_ACCOUNTS;
+  return local || [];
 }
 
 /**
@@ -371,7 +326,7 @@ export async function loginUser(
 
   if (!dbMatched) {
     return {
-      error: 'Tài khoản không tồn tại. Vui lòng kiểm tra lại email hoặc chọn tab "Đăng Ký Mới" bên dưới.',
+      error: 'Tài khoản không tồn tại. Vui lòng kiểm tra lại email hoặc chọn Đăng Ký.',
     };
   }
 
@@ -379,7 +334,7 @@ export async function loginUser(
   const isPasswordValid = verifyPassword(cleanPass, dbMatched.password);
   if (!isPasswordValid) {
     return {
-      error: 'Mật khẩu không chính xác. Mẹo: Tài khoản demo dùng mật khẩu: admin123 (hoặc admin), user123 (hoặc user).',
+      error: 'Mật khẩu không chính xác. Vui lòng kiểm tra và thử lại.',
     };
   }
 
@@ -491,10 +446,10 @@ export function switchRole(role: UserRole): UserProfile {
   if (role === 'viewer') {
     return logoutUser();
   }
-  const matched = DEMO_ACCOUNTS.find((a) => a.role === role) || DEMO_ACCOUNTS[1];
-  setCurrentUser(matched);
-  upsertUserToSupabase(matched);
-  return matched;
+  const current = getCurrentUser();
+  const updated: UserProfile = { ...current, role };
+  setCurrentUser(updated);
+  return updated;
 }
 
 // Helper kiểm tra quyền (RBAC)

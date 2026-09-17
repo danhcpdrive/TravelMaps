@@ -11,34 +11,22 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- -----------------------------------------------------------------------------
--- 1. TÀI KHOẢN NGƯỜI DÙNG MẪU (travel_users)
--- Mật khẩu đã mã hóa Bcrypt:
--- Admin: 'admin123' (hoặc gõ nhanh 'admin')
--- User:  'user123'  (hoặc gõ nhanh 'user')
+-- 1. TÀI KHOẢN NGƯỜI DÙNG ADMIN DUY NHẤT (travel_users)
+-- Email: caophuocdanh@hotmail.com
 -- -----------------------------------------------------------------------------
--- Dọn dẹp tài khoản viewer nếu có trong database trước đây
-DELETE FROM public.travel_users WHERE role = 'viewer' OR email = 'viewer@travelmaps.vn';
+-- Dọn dẹp tài khoản thử nghiệm cũ
+DELETE FROM public.travel_users WHERE email IN ('viewer@travelmaps.vn', 'admin@travelmaps.vn', 'user@travelmaps.vn');
 
 INSERT INTO public.travel_users (id, name, email, password, role, avatar_url, phone, status)
 VALUES
   (
-    'user-admin-01',
-    'Quản Trị Viên (Admin)',
-    'admin@travelmaps.vn',
-    '$2b$10$EbWDlJAsmOK8uQDwTbBtae0tgh9y.kzwj92TfpNhAH6T3O1rIG5WO',
+    'user-admin-trum',
+    'Trùm',
+    'caophuocdanh@hotmail.com',
+    '$2b$10$Hqf.M6Ogn/h87uFdhFvok.X3JseEfHBrLNGhD56hV0mt0jOR24At2',
     'admin',
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     '0901234567',
-    'active'
-  ),
-  (
-    'user-member-02',
-    'Thành Viên Du Lịch (User)',
-    'user@travelmaps.vn',
-    '$2b$10$3A1QSQlhdo/JNYLv3ygI9eS8n40XtF5KypcCCZYMlq0NXqEphyZRu',
-    'user',
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    '0912345678',
     'active'
   )
 ON CONFLICT (email) DO UPDATE SET
@@ -109,7 +97,6 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- -----------------------------------------------------------------------------
 -- 2.1. DANH MỤC THÀNH PHỐ / TỈNH THÀNH (travel_cities)
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.travel_cities (
   id VARCHAR(50) PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -122,13 +109,69 @@ CREATE TABLE IF NOT EXISTS public.travel_cities (
 
 INSERT INTO public.travel_cities (id, name, code, lat, lng, sort_order)
 VALUES
-  ('da_nang', 'Đà Nẵng', 'DAD', 16.0544, 108.2022, 1),
-  ('hoi_an', 'Hội An / Quảng Nam', 'VNHAN', 15.8801, 108.3380, 2),
-  ('ha_noi', 'Hà Nội', 'HAN', 21.0285, 105.8542, 3),
-  ('ho_chi_minh', 'TP. Hồ Chí Minh', 'SGN', 10.8231, 106.6297, 4),
-  ('phu_quoc', 'Phú Quốc', 'PQC', 10.2899, 103.9840, 5),
-  ('sa_pa', 'Sa Pa', 'SAP', 22.3364, 103.8438, 6),
-  ('hue', 'Thừa Thiên Huế', 'HUI', 16.4637, 107.5909, 7)
+  ('ha_noi', 'Hà Nội', 'HAN', 21.0285, 105.8542, 1),
+  ('hai_phong', 'Hải Phòng', 'HPH', 20.8449, 106.6881, 2),
+  ('quang_ninh', 'Quảng Ninh / Hạ Long', 'VHL', 20.95, 107.0833, 3),
+  ('lao_cai', 'Lào Cai / Sa Pa', 'SAP', 22.4856, 103.9707, 4),
+  ('ninh_binh', 'Ninh Bình', 'NBH', 20.2506, 105.9744, 5),
+  ('ha_giang', 'Hà Giang', 'HGI', 22.8233, 104.9839, 6),
+  ('cao_bang', 'Cao Bằng', 'CBG', 22.6657, 105.9739, 7),
+  ('yen_bai', 'Yên Bái', 'YBI', 21.705, 104.875, 8),
+  ('dien_bien', 'Điện Biên', 'DBN', 21.3861, 103.0231, 9),
+  ('vinh_phuc', 'Vĩnh Phúc', 'VPC', 21.3089, 105.6047, 10),
+  ('bac_giang', 'Bắc Giang', 'BGG', 21.2731, 106.1946, 11),
+  ('bac_kan', 'Bắc Kạn', 'BKN', 22.147, 105.8348, 12),
+  ('bac_ninh', 'Bắc Ninh', 'BNH', 21.1861, 106.0763, 13),
+  ('ha_nam', 'Hà Nam', 'HNM', 20.5452, 105.9122, 14),
+  ('hai_duong', 'Hải Dương', 'HDG', 20.9364, 106.315, 15),
+  ('hoa_binh', 'Hòa Bình', 'HBH', 20.8133, 105.3383, 16),
+  ('hung_yen', 'Hưng Yên', 'HYN', 20.6464, 106.0511, 17),
+  ('lai_chau', 'Lai Châu', 'LCU', 22.3964, 103.4589, 18),
+  ('lang_son', 'Lạng Sơn', 'LSN', 21.8533, 106.7611, 19),
+  ('nam_dinh', 'Nam Định', 'NDH', 20.4333, 106.1833, 20),
+  ('phu_tho', 'Phú Thọ', 'PTO', 21.3228, 105.215, 21),
+  ('son_la', 'Sơn La', 'SLA', 21.3256, 103.9189, 22),
+  ('thai_binh', 'Thái Bình', 'TBH', 20.45, 106.3333, 23),
+  ('thai_nguyen', 'Thái Nguyên', 'TNN', 21.5928, 105.8442, 24),
+  ('tuyen_quang', 'Tuyên Quang', 'TQG', 21.8239, 105.2158, 25),
+  ('da_nang', 'Đà Nẵng', 'DAD', 16.0544, 108.2022, 26),
+  ('quang_nam', 'Quảng Nam / Hội An', 'VNHAN', 15.8801, 108.338, 27),
+  ('thua_thien_hue', 'Thừa Thiên Huế', 'HUI', 16.4637, 107.5909, 28),
+  ('khanh_hoa', 'Khánh Hòa / Nha Trang', 'NHA', 12.2388, 109.1967, 29),
+  ('lam_dong', 'Lâm Đồng / Đà Lạt', 'DLI', 11.9404, 108.4583, 30),
+  ('quang_binh', 'Quảng Bình', 'QBH', 17.4686, 106.6222, 31),
+  ('quang_tri', 'Quảng Trị', 'QTI', 16.75, 107.1833, 32),
+  ('quang_ngai', 'Quảng Ngãi', 'QNI', 15.12, 108.8, 33),
+  ('binh_dinh', 'Bình Định / Quy Nhơn', 'BDH', 13.783, 109.2197, 34),
+  ('phu_yen', 'Phú Yên', 'PYU', 13.0883, 109.2925, 35),
+  ('ninh_thuan', 'Ninh Thuận', 'NTH', 11.5667, 108.9833, 36),
+  ('binh_thuan', 'Bình Thuận / Phan Thiết', 'BTN', 10.9333, 108.1, 37),
+  ('thanh_hoa', 'Thanh Hóa', 'THA', 19.8, 105.7667, 38),
+  ('nghe_an', 'Nghệ An', 'NAN', 18.6733, 105.6811, 39),
+  ('ha_tinh', 'Hà Tĩnh', 'HTH', 18.343, 105.9058, 40),
+  ('kon_tum', 'Kon Tum', 'KTM', 14.35, 108.0, 41),
+  ('gia_lai', 'Gia Lai', 'GLAI', 13.9833, 108.0, 42),
+  ('dak_lak', 'Đắk Lắk', 'DLK', 12.6667, 108.05, 43),
+  ('dak_nong', 'Đắk Nông', 'DKN', 12.0042, 107.6875, 44),
+  ('ho_chi_minh', 'TP. Hồ Chí Minh', 'SGN', 10.8231, 106.6297, 45),
+  ('can_tho', 'Cần Thơ', 'VCA', 10.0452, 105.7469, 46),
+  ('ba_ria_vung_tau', 'Bà Rịa - Vũng Tàu', 'VTG', 10.346, 107.0843, 47),
+  ('kien_giang', 'Kiên Giang / Phú Quốc', 'PQC', 10.0125, 105.0809, 48),
+  ('an_giang', 'An Giang', 'AGG', 10.5381, 105.1259, 49),
+  ('bac_lieu', 'Bạc Liêu', 'BLU', 9.2941, 105.7244, 50),
+  ('ben_tre', 'Bến Tre', 'BTE', 10.2432, 106.3751, 51),
+  ('binh_duong', 'Bình Dương', 'BDG', 11.1604, 106.652, 52),
+  ('binh_phuoc', 'Bình Phước', 'BPC', 11.6473, 106.892, 53),
+  ('ca_mau', 'Cà Mau', 'CMU', 9.1769, 105.1524, 54),
+  ('dong_nai', 'Đồng Nai', 'DNI', 10.945, 106.8247, 55),
+  ('dong_thap', 'Đồng Tháp', 'DTP', 10.4938, 105.6881, 56),
+  ('hau_giang', 'Hậu Giang', 'HGI2', 9.7842, 105.4701, 57),
+  ('long_an', 'Long An', 'LAN', 10.5362, 106.4086, 58),
+  ('soc_trang', 'Sóc Trăng', 'STG', 9.6033, 105.98, 59),
+  ('tay_ninh', 'Tây Ninh', 'TNI', 11.31, 106.0983, 60),
+  ('tien_giang', 'Tiền Giang', 'TGG', 10.4283, 106.3408, 61),
+  ('tra_vinh', 'Trà Vinh', 'TVH', 9.9347, 106.3453, 62),
+  ('vinh_long', 'Vĩnh Long', 'VLG', 10.2536, 105.9722, 63)
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   code = EXCLUDED.code,
@@ -138,8 +181,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 ALTER TABLE public.travel_locations ADD COLUMN IF NOT EXISTS city_id VARCHAR(50) REFERENCES public.travel_cities(id);
 
--- -----------------------------------------------------------------------------
--- 3. HỆ THỐNG THẺ NHÃN ĐẶC TRƯNG (travel_tags)
+-- -- 3. HỆ THỐNG THẺ NHÃN ĐẶC TRƯNG (travel_tags)
 -- -----------------------------------------------------------------------------
 INSERT INTO public.travel_tags (id, name, color, icon)
 VALUES

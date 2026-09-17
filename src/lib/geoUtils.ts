@@ -79,13 +79,74 @@ export const SERVICE_GROUPS = [
 ];
 
 export const DEFAULT_CITIES: TravelCity[] = [
-  { id: 'da_nang', name: 'Đà Nẵng', code: 'DAD', lat: 16.0544, lng: 108.2022, sort_order: 1 },
-  { id: 'hoi_an', name: 'Hội An / Quảng Nam', code: 'VNHAN', lat: 15.8801, lng: 108.3380, sort_order: 2 },
-  { id: 'ha_noi', name: 'Hà Nội', code: 'HAN', lat: 21.0285, lng: 105.8542, sort_order: 3 },
-  { id: 'ho_chi_minh', name: 'TP. Hồ Chí Minh', code: 'SGN', lat: 10.8231, lng: 106.6297, sort_order: 4 },
-  { id: 'phu_quoc', name: 'Phú Quốc', code: 'PQC', lat: 10.2899, lng: 103.9840, sort_order: 5 },
-  { id: 'sa_pa', name: 'Sa Pa', code: 'SAP', lat: 22.3364, lng: 103.8438, sort_order: 6 },
-  { id: 'hue', name: 'Thừa Thiên Huế', code: 'HUI', lat: 16.4637, lng: 107.5909, sort_order: 7 },
+  // Miền Bắc
+  { id: 'ha_noi', name: 'Hà Nội', code: 'HAN', lat: 21.0285, lng: 105.8542, sort_order: 1 },
+  { id: 'hai_phong', name: 'Hải Phòng', code: 'HPH', lat: 20.8449, lng: 106.6881, sort_order: 2 },
+  { id: 'quang_ninh', name: 'Quảng Ninh / Hạ Long', code: 'VHL', lat: 20.9500, lng: 107.0833, sort_order: 3 },
+  { id: 'lao_cai', name: 'Lào Cai / Sa Pa', code: 'SAP', lat: 22.4856, lng: 103.9707, sort_order: 4 },
+  { id: 'ninh_binh', name: 'Ninh Bình', code: 'NBH', lat: 20.2506, lng: 105.9744, sort_order: 5 },
+  { id: 'ha_giang', name: 'Hà Giang', code: 'HGI', lat: 22.8233, lng: 104.9839, sort_order: 6 },
+  { id: 'cao_bang', name: 'Cao Bằng', code: 'CBG', lat: 22.6657, lng: 105.9739, sort_order: 7 },
+  { id: 'yen_bai', name: 'Yên Bái', code: 'YBI', lat: 21.7050, lng: 104.8750, sort_order: 8 },
+  { id: 'dien_bien', name: 'Điện Biên', code: 'DBN', lat: 21.3861, lng: 103.0231, sort_order: 9 },
+  { id: 'vinh_phuc', name: 'Vĩnh Phúc', code: 'VPC', lat: 21.3089, lng: 105.6047, sort_order: 10 },
+  { id: 'bac_giang', name: 'Bắc Giang', code: 'BGG', lat: 21.2731, lng: 106.1946, sort_order: 11 },
+  { id: 'bac_kan', name: 'Bắc Kạn', code: 'BKN', lat: 22.1470, lng: 105.8348, sort_order: 12 },
+  { id: 'bac_ninh', name: 'Bắc Ninh', code: 'BNH', lat: 21.1861, lng: 106.0763, sort_order: 13 },
+  { id: 'ha_nam', name: 'Hà Nam', code: 'HNM', lat: 20.5452, lng: 105.9122, sort_order: 14 },
+  { id: 'hai_duong', name: 'Hải Dương', code: 'HDG', lat: 20.9364, lng: 106.3150, sort_order: 15 },
+  { id: 'hoa_binh', name: 'Hòa Bình', code: 'HBH', lat: 20.8133, lng: 105.3383, sort_order: 16 },
+  { id: 'hung_yen', name: 'Hưng Yên', code: 'HYN', lat: 20.6464, lng: 106.0511, sort_order: 17 },
+  { id: 'lai_chau', name: 'Lai Châu', code: 'LCU', lat: 22.3964, lng: 103.4589, sort_order: 18 },
+  { id: 'lang_son', name: 'Lạng Sơn', code: 'LSN', lat: 21.8533, lng: 106.7611, sort_order: 19 },
+  { id: 'nam_dinh', name: 'Nam Định', code: 'NDH', lat: 20.4333, lng: 106.1833, sort_order: 20 },
+  { id: 'phu_tho', name: 'Phú Thọ', code: 'PTO', lat: 21.3228, lng: 105.2150, sort_order: 21 },
+  { id: 'son_la', name: 'Sơn La', code: 'SLA', lat: 21.3256, lng: 103.9189, sort_order: 22 },
+  { id: 'thai_binh', name: 'Thái Bình', code: 'TBH', lat: 20.4500, lng: 106.3333, sort_order: 23 },
+  { id: 'thai_nguyen', name: 'Thái Nguyên', code: 'TNN', lat: 21.5928, lng: 105.8442, sort_order: 24 },
+  { id: 'tuyen_quang', name: 'Tuyên Quang', code: 'TQG', lat: 21.8239, lng: 105.2158, sort_order: 25 },
+
+  // Miền Trung & Tây Nguyên
+  { id: 'da_nang', name: 'Đà Nẵng', code: 'DAD', lat: 16.0544, lng: 108.2022, sort_order: 26 },
+  { id: 'quang_nam', name: 'Quảng Nam / Hội An', code: 'VNHAN', lat: 15.8801, lng: 108.3380, sort_order: 27 },
+  { id: 'thua_thien_hue', name: 'Thừa Thiên Huế', code: 'HUI', lat: 16.4637, lng: 107.5909, sort_order: 28 },
+  { id: 'khanh_hoa', name: 'Khánh Hòa / Nha Trang', code: 'NHA', lat: 12.2388, lng: 109.1967, sort_order: 29 },
+  { id: 'lam_dong', name: 'Lâm Đồng / Đà Lạt', code: 'DLI', lat: 11.9404, lng: 108.4583, sort_order: 30 },
+  { id: 'quang_binh', name: 'Quảng Bình', code: 'QBH', lat: 17.4686, lng: 106.6222, sort_order: 31 },
+  { id: 'quang_tri', name: 'Quảng Trị', code: 'QTI', lat: 16.7500, lng: 107.1833, sort_order: 32 },
+  { id: 'quang_ngai', name: 'Quảng Ngãi', code: 'QNI', lat: 15.1200, lng: 108.8000, sort_order: 33 },
+  { id: 'binh_dinh', name: 'Bình Định / Quy Nhơn', code: 'BDH', lat: 13.7830, lng: 109.2197, sort_order: 34 },
+  { id: 'phu_yen', name: 'Phú Yên', code: 'PYU', lat: 13.0883, lng: 109.2925, sort_order: 35 },
+  { id: 'ninh_thuan', name: 'Ninh Thuận', code: 'NTH', lat: 11.5667, lng: 108.9833, sort_order: 36 },
+  { id: 'binh_thuan', name: 'Bình Thuận / Phan Thiết', code: 'BTN', lat: 10.9333, lng: 108.1000, sort_order: 37 },
+  { id: 'thanh_hoa', name: 'Thanh Hóa', code: 'THA', lat: 19.8000, lng: 105.7667, sort_order: 38 },
+  { id: 'nghe_an', name: 'Nghệ An', code: 'NAN', lat: 18.6733, lng: 105.6811, sort_order: 39 },
+  { id: 'ha_tinh', name: 'Hà Tĩnh', code: 'HTH', lat: 18.3430, lng: 105.9058, sort_order: 40 },
+  { id: 'kon_tum', name: 'Kon Tum', code: 'KTM', lat: 14.3500, lng: 108.0000, sort_order: 41 },
+  { id: 'gia_lai', name: 'Gia Lai', code: 'GLAI', lat: 13.9833, lng: 108.0000, sort_order: 42 },
+  { id: 'dak_lak', name: 'Đắk Lắk', code: 'DLK', lat: 12.6667, lng: 108.0500, sort_order: 43 },
+  { id: 'dak_nong', name: 'Đắk Nông', "code": "DKN", lat: 12.0042, lng: 107.6875, sort_order: 44 },
+
+  // Miền Nam
+  { id: 'ho_chi_minh', name: 'TP. Hồ Chí Minh', code: 'SGN', lat: 10.8231, lng: 106.6297, sort_order: 45 },
+  { id: 'can_tho', name: 'Cần Thơ', code: 'VCA', lat: 10.0452, lng: 105.7469, sort_order: 46 },
+  { id: 'ba_ria_vung_tau', name: 'Bà Rịa - Vũng Tàu', code: 'VTG', lat: 10.3460, lng: 107.0843, sort_order: 47 },
+  { id: 'kien_giang', name: 'Kiên Giang / Phú Quốc', code: 'PQC', lat: 10.0125, lng: 105.0809, sort_order: 48 },
+  { id: 'an_giang', name: 'An Giang', code: 'AGG', lat: 10.5381, lng: 105.1259, sort_order: 49 },
+  { id: 'bac_lieu', name: 'Bạc Liêu', code: 'BLU', lat: 9.2941, lng: 105.7244, sort_order: 50 },
+  { id: 'ben_tre', name: 'Bến Tre', code: 'BTE', lat: 10.2432, lng: 106.3751, sort_order: 51 },
+  { id: 'binh_duong', name: 'Bình Dương', code: 'BDG', lat: 11.1604, lng: 106.6520, sort_order: 52 },
+  { id: 'binh_phuoc', name: 'Bình Phước', code: 'BPC', lat: 11.6473, lng: 106.8920, sort_order: 53 },
+  { id: 'ca_mau', name: 'Cà Mau', code: 'CMU', lat: 9.1769, lng: 105.1524, sort_order: 54 },
+  { id: 'dong_nai', name: 'Đồng Nai', code: 'DNI', lat: 10.9450, lng: 106.8247, sort_order: 55 },
+  { id: 'dong_thap', name: 'Đồng Tháp', code: 'DTP', lat: 10.4938, lng: 105.6881, sort_order: 56 },
+  { id: 'hau_giang', name: 'Hậu Giang', code: 'HGI2', lat: 9.7842, lng: 105.4701, sort_order: 57 },
+  { id: 'long_an', name: 'Long An', code: 'LAN', lat: 10.5362, lng: 106.4086, sort_order: 58 },
+  { id: 'soc_trang', name: 'Sóc Trăng', code: 'STG', lat: 9.6033, lng: 105.9800, sort_order: 59 },
+  { id: 'tay_ninh', name: 'Tây Ninh', code: 'TNI', lat: 11.3100, lng: 106.0983, sort_order: 60 },
+  { id: 'tien_giang', name: 'Tiền Giang', code: 'TGG', lat: 10.4283, lng: 106.3408, sort_order: 61 },
+  { id: 'tra_vinh', name: 'Trà Vinh', code: 'TVH', lat: 9.9347, lng: 106.3453, sort_order: 62 },
+  { id: 'vinh_long', name: 'Vĩnh Long', code: 'VLG', lat: 10.2536, lng: 105.9722, sort_order: 63 },
 ];
 
 export const DISTANCE_FILTER_OPTIONS = [
@@ -118,11 +179,18 @@ export function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lo
 
 // Update place list with distance calculated from user position
 export function applyUserDistance(places: TravelPlace[], userLat: number | null, userLng: number | null): TravelPlace[] {
-  if (userLat === null || userLng === null) {
+  const uLat = Number(userLat);
+  const uLng = Number(userLng);
+  if (userLat === null || userLng === null || isNaN(uLat) || isNaN(uLng)) {
     return places.map((p) => ({ ...p, distanceKm: undefined }));
   }
   return places.map((place) => {
-    const dist = calculateDistanceKm(userLat, userLng, place.coordinates.lat, place.coordinates.lng);
+    const pLat = Number(place.coordinates?.lat);
+    const pLng = Number(place.coordinates?.lng);
+    if (isNaN(pLat) || isNaN(pLng)) {
+      return { ...place, distanceKm: undefined };
+    }
+    const dist = calculateDistanceKm(uLat, uLng, pLat, pLng);
     return { ...place, distanceKm: dist };
   });
 }

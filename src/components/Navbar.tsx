@@ -259,7 +259,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     type="button"
                     onClick={onOpenImportExport}
-                    title="Sao lưu & Phục hồi JSON/Excel (Admin)"
+                    title="Import & Export Dữ liệu (SQL / JSON) (Admin)"
                     className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 transition cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <Upload className="w-4 h-4 text-indigo-600" />

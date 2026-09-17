@@ -6,6 +6,7 @@ import { SERVICE_GROUPS_MAP } from '../lib/geoUtils';
 import {
   Layers,
   Compass,
+  Navigation,
 } from 'lucide-react';
 
 interface TravelMapViewProps {
@@ -15,7 +16,8 @@ interface TravelMapViewProps {
   onToggleChecked: (id: string, currentChecked: boolean) => void;
   onToggleFavorite: (id: string, currentFavorite: boolean) => void;
   onOpenDetailModal: (place: TravelPlace) => void;
-  userLocation: { lat: number; lng: number } | null;
+  userLocation: { lat: number; lng: number; timestamp?: number } | null;
+  onGetUserLocation?: () => void;
 }
 
 export const TravelMapView: React.FC<TravelMapViewProps> = ({
@@ -26,6 +28,7 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
   onToggleFavorite,
   onOpenDetailModal,
   userLocation,
+  onGetUserLocation,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -47,8 +50,10 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
     if (!mapInstanceRef.current) {
       // Default center: Da Nang / Central Vietnam
-      const defaultLat = selectedPlace?.coordinates.lat || 16.0544;
-      const defaultLng = selectedPlace?.coordinates.lng || 108.2022;
+      const selLat = Number(selectedPlace?.coordinates?.lat);
+      const selLng = Number(selectedPlace?.coordinates?.lng);
+      const defaultLat = (!isNaN(selLat) && selLat !== 0) ? selLat : 16.0544;
+      const defaultLng = (!isNaN(selLng) && selLng !== 0) ? selLng : 108.2022;
 
       const map = L.map(mapContainerRef.current, {
         center: [defaultLat, defaultLng],
@@ -103,6 +108,10 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
     // Render new markers
     places.forEach((place) => {
+      const pLat = Number(place?.coordinates?.lat);
+      const pLng = Number(place?.coordinates?.lng);
+      if (isNaN(pLat) || isNaN(pLng)) return;
+
       const isSelected = selectedPlace?.id === place.id;
       const isChecked = place.checked;
       const groupMeta = SERVICE_GROUPS_MAP[place.group] || SERVICE_GROUPS_MAP.du_lich;
@@ -149,7 +158,7 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
         popupAnchor: [0, -36],
       });
 
-      const marker = L.marker([place.coordinates.lat, place.coordinates.lng], {
+      const marker = L.marker([pLat, pLng], {
         icon: customIcon,
       }).addTo(map);
 
@@ -246,7 +255,7 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
               Chi tiết & Đánh giá
             </button>
             <a 
-              href="https://www.google.com/maps/dir/?api=1&destination=${place.coordinates.lat},${place.coordinates.lng}" 
+              href="https://www.google.com/maps/dir/?api=1&destination=${pLat},${pLng}" 
               target="_blank" 
               rel="noopener noreferrer"
               style="color: #ffffff !important;"
@@ -299,40 +308,62 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
     // User location marker
     if (userLocation) {
-      if (userMarkerRef.current) {
-        userMarkerRef.current.remove();
+      const uLat = Number(userLocation.lat);
+      const uLng = Number(userLocation.lng);
+
+      if (!isNaN(uLat) && !isNaN(uLng)) {
+        if (userMarkerRef.current) {
+          userMarkerRef.current.remove();
+        }
+
+        const userIcon = L.divIcon({
+          html: `
+            <div class="relative flex items-center justify-center">
+              <span class="animate-ping absolute inline-flex h-6 w-6 rounded-full bg-blue-400 opacity-75"></span>
+              <div class="w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-md z-20"></div>
+            </div>
+          `,
+          className: 'user-location-pin',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+
+        userMarkerRef.current = L.marker([uLat, uLng], {
+          icon: userIcon,
+          zIndexOffset: 1000,
+        }).addTo(map);
       }
-
-      const userIcon = L.divIcon({
-        html: `
-          <div class="relative flex items-center justify-center">
-            <span class="animate-ping absolute inline-flex h-6 w-6 rounded-full bg-blue-400 opacity-75"></span>
-            <div class="w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-md z-20"></div>
-          </div>
-        `,
-        className: 'user-location-pin',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
-      });
-
-      userMarkerRef.current = L.marker([userLocation.lat, userLocation.lng], {
-        icon: userIcon,
-        zIndexOffset: 1000,
-      })
-        .addTo(map)
-        .bindPopup('<b>Vị trí GPS của bạn</b>');
     }
   }, [places, selectedPlace?.id, userLocation]);
+
+  // Fly & Zoom to user location whenever location is received or refreshed
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !userLocation) return;
+
+    const uLat = Number(userLocation.lat);
+    const uLng = Number(userLocation.lng);
+    if (isNaN(uLat) || isNaN(uLng)) return;
+
+    map.flyTo([uLat, uLng], 16, {
+      animate: true,
+      duration: 1.2,
+    });
+  }, [userLocation?.lat, userLocation?.lng, userLocation?.timestamp]);
 
   // Center map and automatically zoom in when a place is selected
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !selectedPlace) return;
 
+    const sLat = Number(selectedPlace.coordinates?.lat);
+    const sLng = Number(selectedPlace.coordinates?.lng);
+    if (isNaN(sLat) || isNaN(sLng)) return;
+
     const currentZoom = map.getZoom();
     const targetZoom = Math.max(currentZoom, 15);
 
-    map.flyTo([selectedPlace.coordinates.lat, selectedPlace.coordinates.lng], targetZoom, {
+    map.flyTo([sLat, sLng], targetZoom, {
       animate: true,
       duration: 1.0,
     });
@@ -341,15 +372,42 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
     if (marker) {
       marker.openPopup();
     }
-  }, [selectedPlace?.id]);
+  }, [selectedPlace?.id, selectedPlace?.coordinates?.lat, selectedPlace?.coordinates?.lng]);
 
   // Fit all markers in viewport
   const handleFitBounds = () => {
     const map = mapInstanceRef.current;
-    if (!map || places.length === 0) return;
+    if (!map || !places || places.length === 0) return;
 
-    const bounds = L.latLngBounds(places.map((p) => [p.coordinates.lat, p.coordinates.lng]));
+    const validPoints: [number, number][] = [];
+    places.forEach((p) => {
+      const lat = Number(p.coordinates?.lat);
+      const lng = Number(p.coordinates?.lng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        validPoints.push([lat, lng]);
+      }
+    });
+
+    if (validPoints.length === 0) return;
+
+    const bounds = L.latLngBounds(validPoints);
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+  };
+
+  // Center user location on button click
+  const handleCenterUser = () => {
+    if (onGetUserLocation) {
+      onGetUserLocation();
+    } else if (userLocation && mapInstanceRef.current) {
+      const uLat = Number(userLocation.lat);
+      const uLng = Number(userLocation.lng);
+      if (!isNaN(uLat) && !isNaN(uLng)) {
+        mapInstanceRef.current.flyTo([uLat, uLng], 16, {
+          animate: true,
+          duration: 1.2,
+        });
+      }
+    }
   };
 
   return (
@@ -400,6 +458,15 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
       {/* Map Action Floating Buttons */}
       <div className="absolute bottom-6 right-4 z-20 flex flex-col space-y-2">
+        <button
+          type="button"
+          onClick={handleCenterUser}
+          title="Zoom tới vị trí GPS của tôi"
+          className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg border border-blue-700 transition flex items-center justify-center cursor-pointer group"
+        >
+          <Navigation className="w-5 h-5 text-white group-hover:scale-110 transition duration-200" />
+        </button>
+
         <button
           type="button"
           onClick={handleFitBounds}

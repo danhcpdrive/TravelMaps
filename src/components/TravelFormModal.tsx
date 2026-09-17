@@ -130,8 +130,14 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
       category: formData.category?.trim() || 'Địa điểm',
       address: formData.address?.trim() || '',
       coordinates: {
-        lat: Number(formData.coordinates?.lat ?? 16.0544),
-        lng: Number(formData.coordinates?.lng ?? 108.2022),
+        lat: (() => {
+          const val = Number(formData.coordinates?.lat);
+          return (!isNaN(val) && val !== 0) ? val : 16.0544;
+        })(),
+        lng: (() => {
+          const val = Number(formData.coordinates?.lng);
+          return (!isNaN(val) && val !== 0) ? val : 108.2022;
+        })(),
       },
       phone: formData.phone?.trim() || '',
       contact: formData.contact?.trim() || '',

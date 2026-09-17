@@ -181,7 +181,7 @@ export const TravelList: React.FC<TravelListProps> = ({
   return (
     <div className="flex flex-col h-full bg-white border-r border-slate-200 text-slate-900 shadow-xs">
       
-      {/* 1. Service Group Filter: Dạng Tag Wrap thuần túy (Không dùng dropdown, không bị cuộn che mất) */}
+      {/* 1. Service Group Filter: Dropdown trên mobile (block sm:hidden) và Tags Wrap trên máy tính (hidden sm:flex) */}
       <div className="p-2.5 sm:p-3 bg-slate-50 border-b border-slate-200 space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -194,8 +194,36 @@ export const TravelList: React.FC<TravelListProps> = ({
           </span>
         </div>
 
-        {/* Dạng Tags Wrap: flex-wrap tự động xuống dòng, không cuộn ngang, nhìn thấy 100% các nhóm */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Mobile Dropdown View */}
+        <div className="block sm:hidden relative">
+          <select
+            id="mobile-service-group-select"
+            value={filters.group || 'all'}
+            onChange={(e) => onFilterChange({ group: e.target.value })}
+            className="w-full pl-8 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition cursor-pointer appearance-none shadow-2xs"
+          >
+            <option value="all">
+              🌟 Tất cả dịch vụ ({nonGroupFilteredPlaces.length})
+            </option>
+            {activeGroups.map((grp) => {
+              const count = nonGroupFilteredPlaces.filter((p) => p.group === grp.id).length;
+              return (
+                <option key={grp.id} value={grp.id}>
+                  {grp.icon} {grp.label} ({count})
+                </option>
+              );
+            })}
+          </select>
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm pointer-events-none">
+            {filters.group === 'all'
+              ? '🌟'
+              : activeGroups.find((g) => g.id === filters.group)?.icon || '📍'}
+          </span>
+          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
+
+        {/* Desktop Tag Buttons View */}
+        <div className="hidden sm:flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => onFilterChange({ group: 'all' })}
@@ -262,35 +290,28 @@ export const TravelList: React.FC<TravelListProps> = ({
           )}
         </div>
 
-        {activeCities.length === 0 ? (
-          <div className="text-[11px] text-slate-500 italic flex items-center gap-1 py-1">
-            <Database className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span>Chưa có dữ liệu thành phố trong Database (vui lòng chạy <code className="bg-slate-200 px-1 py-0.5 rounded text-[10px] font-mono">sqlsample.sql</code> trong Supabase SQL Editor)</span>
-          </div>
-        ) : (
-          <div className="relative">
-            <select
-              id="city-filter-select"
-              value={filters.cityId || 'all'}
-              onChange={(e) => onFilterChange({ cityId: e.target.value })}
-              className="w-full pl-8 pr-8 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition cursor-pointer appearance-none shadow-2xs"
-            >
-              <option value="all">🏙️ Tất cả thành phố ({nonCityFilteredPlaces.length})</option>
-              {activeCities.map((city) => {
-                const cityCount = nonCityFilteredPlaces.filter(
-                  (p) => p.city_id === city.id || (p.cityName && p.cityName.toLowerCase().includes(city.id.toLowerCase()))
-                ).length;
-                return (
-                  <option key={city.id} value={city.id}>
-                    🏙️ {city.name} ({cityCount})
-                  </option>
-                );
-              })}
-            </select>
-            <Building2 className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-        )}
+        <div className="relative">
+          <select
+            id="city-filter-select"
+            value={filters.cityId || 'all'}
+            onChange={(e) => onFilterChange({ cityId: e.target.value })}
+            className="w-full pl-8 pr-8 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition cursor-pointer appearance-none shadow-2xs"
+          >
+            <option value="all">🏙️ Tất cả thành phố ({nonCityFilteredPlaces.length})</option>
+            {activeCities.map((city) => {
+              const cityCount = nonCityFilteredPlaces.filter(
+                (p) => p.city_id === city.id || (p.cityName && p.cityName.toLowerCase().includes(city.id.toLowerCase()))
+              ).length;
+              return (
+                <option key={city.id} value={city.id}>
+                  🏙️ {city.name} ({cityCount})
+                </option>
+              );
+            })}
+          </select>
+          <Building2 className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
       </div>
 
       {/* 3. Search & Secondary Filters Bar */}
