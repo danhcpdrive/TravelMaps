@@ -1,0 +1,6 @@
+{
+  "name": "Travel Maps - Bản Đồ Du Lịch & Ẩm Thực",
+  "description": "Ứng dụng lưu giữ, chỉ dẫn và khám phá các địa điểm du lịch, ẩm thực, vui chơi và dịch vụ tiện ích với bản đồ tương tác, định vị GPS và phân nhóm trực quan.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
