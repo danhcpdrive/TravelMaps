@@ -16,7 +16,6 @@ import {
   Database,
   AlertCircle,
   Trash2,
-  Sparkles,
   CheckCircle2,
   MapPin,
   Building,
@@ -33,7 +32,6 @@ import {
   saveLocalTrips,
   getSupabaseClient,
 } from '../lib/supabase';
-import sqlSampleRaw from '../../sqlsample.sql?raw';
 
 export interface ExtraImportData {
   cities?: TravelCity[];
@@ -199,12 +197,6 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
     reader.readAsText(file);
   };
 
-  const handleLoadSampleSql = () => {
-    setSqlText(sqlSampleRaw);
-    setErrorMsg('');
-    setSuccessCount(null);
-  };
-
   const handleSqlImportSubmit = async () => {
     setErrorMsg('');
     setSuccessCount(null);
@@ -223,8 +215,8 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
       setIsProcessing(true);
       setProgressMsg(`Đang xử lý ${parsedSql.places.length} địa điểm và dữ liệu liên quan...`);
 
-      // 1. Sync Cities if selected
-      if (syncCities && parsedSql.cities.length > 0) {
+      // 1. Ensure Cities are synced to database to satisfy foreign key constraints (travel_locations_city_id_fkey)
+      if (parsedSql.cities.length > 0) {
         saveLocalCities(parsedSql.cities);
         const sb = getSupabaseClient();
         if (sb) {
@@ -237,7 +229,8 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                 lat: c.lat || 0,
                 lng: c.lng || 0,
                 sort_order: c.sort_order || 0,
-              }))
+              })),
+              { onConflict: 'id' }
             );
           } catch (e) {
             console.warn('Supabase cities sync warning:', e);
@@ -324,7 +317,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                 Import & Export Dữ Liệu Địa Điểm
               </h2>
               <p className="text-[11px] text-slate-500">
-                Hỗ trợ nạp file SQL sao lưu (sqlsample.sql) hoặc file JSON địa điểm du lịch
+                Hỗ trợ nạp file SQL sao lưu hoặc file JSON
               </p>
             </div>
           </div>
@@ -405,24 +398,6 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
           {activeTab === 'sql' && (
             <div className="space-y-4">
               
-              {/* Quick Actions Header */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-teal-50/70 border border-teal-200/80">
-                <div className="flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4 text-teal-600 shrink-0" />
-                  <span className="text-xs font-semibold text-teal-900">
-                    Nạp nhanh bộ dữ liệu mẫu chuẩn có sẵn:
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleLoadSampleSql}
-                  className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer"
-                >
-                  <Database className="w-3.5 h-3.5" />
-                  <span>⚡ Nạp file sqlsample.sql (100+ địa điểm, 63 tỉnh thành)</span>
-                </button>
-              </div>
-
               {/* File Upload Box */}
               <div className="border-2 border-dashed border-slate-300 hover:border-teal-500 rounded-xl p-5 text-center bg-slate-50 transition group cursor-pointer">
                 <input
@@ -435,7 +410,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                 <label htmlFor="sql-file-input" className="cursor-pointer space-y-1.5 block">
                   <Database className="w-7 h-7 text-slate-400 group-hover:text-teal-600 mx-auto transition" />
                   <p className="text-xs font-semibold text-slate-700">
-                    Bấm để chọn file <span className="text-teal-600 font-bold">.sql</span> từ máy tính (sqlsample.sql hoặc file backup)
+                    Bấm để chọn file <span className="text-teal-600 font-bold">.sql</span> từ máy tính hoặc file backup
                   </p>
                   <p className="text-[11px] text-slate-500">
                     Hỗ trợ tự động phân tích các bảng <code className="font-mono text-teal-700">travel_locations</code>, <code className="font-mono text-teal-700">travel_location_details</code>, <code className="font-mono text-teal-700">travel_cities</code>...
@@ -643,21 +618,23 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                 {showSqlEditorTip && (
                   <div className="mt-2 p-3 rounded-xl bg-slate-100/70 border border-slate-200 text-slate-700 text-xs space-y-2 animate-in fade-in duration-150">
                     <p className="text-[11px] text-slate-600">
-                      Nếu đã kết nối Supabase, bạn cũng có thể mở trực tiếp bảng điều khiển Supabase Dashboard, vào mục <strong>SQL Editor</strong>, dán toàn bộ nội dung file <code className="font-mono text-teal-700">sqlsample.sql</code> và nhấn <strong>Run</strong> để nạp toàn bộ DDL & DML cùng lúc.
+                      Nếu đã kết nối Supabase, bạn cũng có thể mở trực tiếp bảng điều khiển Supabase Dashboard, vào mục <strong>SQL Editor</strong>, dán toàn bộ nội dung file SQL và nhấn <strong>Run</strong> để thực thi toàn bộ DDL & DML cùng lúc.
                     </p>
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyText(sqlText || sqlSampleRaw)}
-                        className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                      >
-                        {copied ? (
-                          <Check className="w-3.5 h-3.5 text-teal-600" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                        <span>{copied ? 'Đã sao chép SQL!' : 'Sao chép toàn bộ SQL'}</span>
-                      </button>
+                      {sqlText && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(sqlText)}
+                          className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          {copied ? (
+                            <Check className="w-3.5 h-3.5 text-teal-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                          <span>{copied ? 'Đã sao chép SQL!' : 'Sao chép nội dung SQL đang nhập'}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

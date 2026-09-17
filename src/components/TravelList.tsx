@@ -56,23 +56,29 @@ export const TravelList: React.FC<TravelListProps> = ({
   const activeGroups = groups && groups.length > 0 ? groups : SERVICE_GROUPS;
   const countSource = allPlaces && allPlaces.length > 0 ? allPlaces : places;
 
-  // Derive activeCities strictly from DB data (travel_cities table or locations in DB)
+  // Derive activeCities strictly from DB data and sort alphabetically A-Z
   const activeCities = useMemo(() => {
-    if (cities && cities.length > 0) return cities;
-    const cityMap = new Map<string, TravelCity>();
-    countSource.forEach((p) => {
-      if (p.city_id || p.cityName) {
-        const id = p.city_id || p.cityName.toLowerCase().replace(/\s+/g, '_');
-        if (!cityMap.has(id)) {
-          cityMap.set(id, {
-            id,
-            name: p.cityName || p.city_id || id,
-            sort_order: 0,
-          });
+    let list: TravelCity[] = [];
+    if (cities && cities.length > 0) {
+      list = [...cities];
+    } else {
+      const cityMap = new Map<string, TravelCity>();
+      countSource.forEach((p) => {
+        if (p.city_id || p.cityName) {
+          const id = p.city_id || p.cityName.toLowerCase().replace(/\s+/g, '_');
+          if (!cityMap.has(id)) {
+            cityMap.set(id, {
+              id,
+              name: p.cityName || p.city_id || id,
+              sort_order: 0,
+            });
+          }
         }
-      }
-    });
-    return Array.from(cityMap.values());
+      });
+      list = Array.from(cityMap.values());
+    }
+    // Sắp xếp danh sách thành phố theo thứ tự A-Z (hỗ trợ bảng chữ cái tiếng Việt)
+    return list.sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
   }, [cities, countSource]);
 
   // Places filtered by all active criteria EXCEPT group (used to calculate Service Group badge counts dynamically)

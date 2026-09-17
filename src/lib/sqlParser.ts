@@ -8,6 +8,7 @@ import {
   TravelTrip,
 } from '../types';
 import { normalizeServiceGroup } from './supabase';
+import { DEFAULT_CITIES } from './geoUtils';
 
 export interface ParsedSqlResult {
   places: TravelPlace[];
@@ -142,6 +143,15 @@ function parseSqlToken(token: string): any {
   if (/^null$/i.test(token)) return null;
   if (/^true$/i.test(token)) return true;
   if (/^false$/i.test(token)) return false;
+
+  // Postgres ARRAY['val1', 'val2'] or to_jsonb(ARRAY[...])
+  if (/^(?:TO_JSONB\s*\(\s*)?ARRAY\s*\[([\s\S]*)\](?:\s*\))?$/i.test(token)) {
+    const arrayBodyMatch = token.match(/^(?:TO_JSONB\s*\(\s*)?ARRAY\s*\[([\s\S]*)\](?:\s*\))?$/i);
+    if (arrayBodyMatch) {
+      const items = splitTupleValues(arrayBodyMatch[1]);
+      return items.map(parseSqlToken);
+    }
+  }
 
   // Single quoted string
   if (token.startsWith("'") && token.endsWith("'") && token.length >= 2) {
@@ -312,14 +322,22 @@ export function parseSqlScript(rawSql: string): ParsedSqlResult {
   }
 
   // 1. Process Cities
-  const cities: TravelCity[] = rawCities.map((c, idx) => ({
+  const parsedCities: TravelCity[] = rawCities.map((c, idx) => ({
     id: String(c.id || `city-${idx}`),
     name: String(c.name || 'Tỉnh / Thành phố'),
     code: c.code ? String(c.code) : '',
-    lat: Number(c.lat) || 16.0544,
-    lng: Number(c.lng) || 108.2022,
+    lat: Number(c.lat) || 16.05441235,
+    lng: Number(c.lng) || 108.20223841,
     sort_order: Number(c.sort_order ?? c.sortorder ?? idx + 1),
   }));
+
+  // Merge with DEFAULT_CITIES so all standard cities exist
+  const cityMapById = new Map<string, TravelCity>();
+  DEFAULT_CITIES.forEach((c) => cityMapById.set(c.id, c));
+  parsedCities.forEach((c) => cityMapById.set(c.id, c));
+  const cities: TravelCity[] = Array.from(cityMapById.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' })
+  );
 
   const cityMap = new Map<string, string>();
   cities.forEach((c) => cityMap.set(c.id, c.name));
@@ -350,8 +368,8 @@ export function parseSqlScript(rawSql: string): ParsedSqlResult {
 
     const rawLat = loc.lat ?? loc.latitude;
     const rawLng = loc.lng ?? loc.longitude;
-    const lat = Number(rawLat) || 16.0544;
-    const lng = Number(rawLng) || 108.2022;
+    const lat = Number(rawLat) || 16.05441235;
+    const lng = Number(rawLng) || 108.20223841;
 
     const cityId = loc.city_id || loc.cityid || '';
     const cityName = cityMap.get(cityId) || loc.city_name || loc.cityname || '';

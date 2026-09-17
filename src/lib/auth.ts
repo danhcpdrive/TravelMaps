@@ -3,6 +3,7 @@ import { UserProfile, UserRole } from '../types';
 import {
   fetchUsersFromSupabase,
   upsertUserToSupabase,
+  updateUserAvatarInSupabase,
   getSupabaseClient,
   loadLocalUsers,
   saveLocalUsers,
@@ -45,16 +46,48 @@ export const GUEST_VIEWER_USER: UserProfile = {
   name: 'Khách Thăm Quan',
   email: '',
   role: 'viewer',
-  avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+  avatarUrl: '',
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-// Không lưu trữ sẵn tài khoản mẫu cứng trong code
-export const DEMO_ACCOUNTS: Array<UserProfile & { password: string }> = [];
+// Tài khoản Quản trị viên (Admin Trùm) mặc định của hệ thống
+// Mật khẩu: 0918273645 (mã băm Bcrypt salt round 10)
+export const DEFAULT_ADMIN_USER: UserProfile & { password: string } = {
+  id: '1',
+  name: 'Trùm',
+  email: 'caophuocdanh@hotmail.com',
+  password: '$2b$10$/HY5pREN6kXeyehq8KQtoeZDcvCdQARuAboLwPNLlbmqQSITt6Aay',
+  role: 'admin',
+  phone: '0901234567',
+  avatarUrl: '',
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
+// Danh sách tài khoản mẫu
+export const DEMO_ACCOUNTS: Array<UserProfile & { password: string }> = [DEFAULT_ADMIN_USER];
 
 // Lấy danh sách tài khoản đã đăng ký trong hệ thống
 export function getRegisteredUsers(): Array<UserProfile & { password?: string }> {
   const local = loadLocalUsers();
+  const adminIndex = local.findIndex(
+    (u) =>
+      u.email.toLowerCase() === DEFAULT_ADMIN_USER.email.toLowerCase() ||
+      String(u.id) === String(DEFAULT_ADMIN_USER.id) ||
+      u.role === 'admin'
+  );
+  if (adminIndex === -1) {
+    local.unshift({ ...DEFAULT_ADMIN_USER });
+    saveLocalUsers(local);
+  } else {
+    // Luôn đảm bảo mật khẩu mới nhất cho tài khoản Admin
+    if (
+      local[adminIndex].email.toLowerCase() === DEFAULT_ADMIN_USER.email.toLowerCase() &&
+      local[adminIndex].password !== DEFAULT_ADMIN_USER.password
+    ) {
+      local[adminIndex].password = DEFAULT_ADMIN_USER.password;
+      saveLocalUsers(local);
+    }
+  }
   return local || [];
 }
 
@@ -62,7 +95,7 @@ export function getRegisteredUsers(): Array<UserProfile & { password?: string }>
  * Cập nhật thông tin Hồ sơ cá nhân (Tên, Ảnh đại diện)
  */
 export async function updateUserProfile(
-  userId: string,
+  userId: string | number,
   updates: { name?: string; avatarUrl?: string }
 ): Promise<{ user?: UserProfile; error?: string }> {
   const currentUser = getCurrentUser();
@@ -86,13 +119,34 @@ export async function updateUserProfile(
 
   // Cập nhật trong danh sách users (Local & Supabase DB)
   const allUsers = loadLocalUsers();
-  const matchedUser = allUsers.find((u) => u.id === userId || u.email.toLowerCase() === currentUser.email.toLowerCase());
-  const savedPassword = matchedUser?.password || hashPassword('123456');
+  const userIdx = allUsers.findIndex(
+    (u) => String(u.id) === String(userId) || u.email.toLowerCase() === currentUser.email.toLowerCase()
+  );
 
+  let savedPassword = hashPassword('123456');
+  if (userIdx >= 0) {
+    savedPassword = allUsers[userIdx].password || savedPassword;
+    allUsers[userIdx] = {
+      ...allUsers[userIdx],
+      name: updatedProfile.name,
+      avatarUrl: updatedProfile.avatarUrl,
+    };
+    saveLocalUsers(allUsers);
+  }
+
+  // 1. Lưu qua upsert
   await upsertUserToSupabase({
     ...updatedProfile,
     password: savedPassword,
   });
+
+  // 2. Cập nhật trực tiếp avatar_url lên Supabase
+  if (updatedProfile.avatarUrl !== undefined) {
+    await updateUserAvatarInSupabase(
+      currentUser.email || String(currentUser.id),
+      updatedProfile.avatarUrl
+    );
+  }
 
   return { user: updatedProfile };
 }
@@ -156,9 +210,15 @@ export async function updateUserRoleInDb(
   userEmail: string,
   newRole: UserRole
 ): Promise<{ success?: boolean; error?: string }> {
+  if (String(userId) === '1' || userEmail.toLowerCase() === 'caophuocdanh@hotmail.com') {
+    if (newRole !== 'admin') {
+      return { error: 'Admin ID:1 không thể giáng xuống làm user' };
+    }
+  }
+
   const currentLocal = loadLocalUsers();
   const idx = currentLocal.findIndex(
-    (u) => u.id === userId || u.email.toLowerCase() === userEmail.toLowerCase()
+    (u) => String(u.id) === String(userId) || u.email.toLowerCase() === userEmail.toLowerCase()
   );
 
   if (idx >= 0) {
@@ -196,7 +256,7 @@ export async function adminResetUserPassword(
   const hashedPassword = hashPassword(newPass);
   const currentLocal = loadLocalUsers();
   const matched = currentLocal.find(
-    (u) => u.id === userId || u.email.toLowerCase() === userEmail.toLowerCase()
+    (u) => String(u.id) === String(userId) || u.email.toLowerCase() === userEmail.toLowerCase()
   );
 
   if (matched) {
@@ -226,9 +286,13 @@ export async function deleteUserInDb(
   userId: string,
   userEmail: string
 ): Promise<{ success?: boolean; error?: string }> {
+  if (String(userId) === '1' || userEmail.toLowerCase() === 'caophuocdanh@hotmail.com') {
+    return { error: 'Admin ID:1 không thể xóa khỏi hệ thống' };
+  }
+
   const currentLocal = loadLocalUsers();
   const updated = currentLocal.filter(
-    (u) => u.id !== userId && u.email.toLowerCase() !== userEmail.toLowerCase()
+    (u) => String(u.id) !== String(userId) && u.email.toLowerCase() !== userEmail.toLowerCase()
   );
   saveLocalUsers(updated);
 
@@ -280,18 +344,22 @@ export function setCurrentUser(user: UserProfile | null): void {
 
 // Đăng nhập kết nối Cơ Sở Dữ Liệu (Supabase DB + Local Fallback)
 export async function loginUser(
-  email: string,
+  emailOrUsername: string,
   pass: string
 ): Promise<{ user?: UserProfile; error?: string; isDbConnected?: boolean }> {
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanInput = emailOrUsername.trim().toLowerCase();
   const cleanPass = pass.trim();
 
-  if (!cleanEmail) {
-    return { error: 'Vui lòng nhập địa chỉ email.' };
+  if (!cleanInput) {
+    return { error: 'Vui lòng nhập email hoặc tên đăng nhập admin.' };
   }
   if (!cleanPass) {
     return { error: 'Vui lòng nhập mật khẩu.' };
   }
+
+  // Hỗ trợ nhập "admin" hoặc "admin@travelmaps.vn" tương đương với email admin chính caophuocdanh@hotmail.com
+  const isAdminAlias = cleanInput === 'admin' || cleanInput === 'admin@travelmaps.vn';
+  const targetEmail = isAdminAlias ? DEFAULT_ADMIN_USER.email.toLowerCase() : cleanInput;
 
   let dbMatched: any = null;
   let isDb = false;
@@ -300,11 +368,13 @@ export async function loginUser(
   const client = getSupabaseClient();
   if (client) {
     try {
-      const { data, error } = await client
-        .from('travel_users')
-        .select('*')
-        .eq('email', cleanEmail)
-        .maybeSingle();
+      let query = client.from('travel_users').select('*');
+      if (isAdminAlias) {
+        query = query.or(`email.eq.${targetEmail},role.eq.admin`);
+      } else {
+        query = query.eq('email', targetEmail);
+      }
+      const { data, error } = await query.maybeSingle();
 
       if (!error && data) {
         dbMatched = data;
@@ -318,10 +388,20 @@ export async function loginUser(
   // 2. Nếu DB chưa có hoặc lỗi, fallback qua danh sách local/demo
   if (!dbMatched) {
     const allUsers = getRegisteredUsers();
-    const localMatch = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+    const localMatch = allUsers.find(
+      (u) =>
+        u.email.toLowerCase() === targetEmail ||
+        u.email.toLowerCase() === cleanInput ||
+        (isAdminAlias && u.role === 'admin')
+    );
     if (localMatch) {
       dbMatched = localMatch;
     }
+  }
+
+  // Fallback an toàn cho tài khoản Admin
+  if (!dbMatched && (isAdminAlias || targetEmail === DEFAULT_ADMIN_USER.email.toLowerCase())) {
+    dbMatched = DEFAULT_ADMIN_USER;
   }
 
   if (!dbMatched) {
@@ -330,8 +410,15 @@ export async function loginUser(
     };
   }
 
-  // 3. Kiểm tra mật khẩu (Đã mã hóa Bcrypt)
-  const isPasswordValid = verifyPassword(cleanPass, dbMatched.password);
+  // 3. Kiểm tra mật khẩu (Hỗ trợ mật khẩu admin 0918273645 và mã hóa Bcrypt)
+  const isAdminAccount =
+    dbMatched.role === 'admin' ||
+    dbMatched.email?.toLowerCase() === DEFAULT_ADMIN_USER.email.toLowerCase() ||
+    isAdminAlias;
+
+  const isExactAdminPass = isAdminAccount && cleanPass === '0918273645';
+  const isPasswordValid = isExactAdminPass || verifyPassword(cleanPass, dbMatched.password);
+
   if (!isPasswordValid) {
     return {
       error: 'Mật khẩu không chính xác. Vui lòng kiểm tra và thử lại.',
@@ -339,19 +426,26 @@ export async function loginUser(
   }
 
   const userProfile: UserProfile = {
-    id: dbMatched.id || `user-${Date.now()}`,
-    name: dbMatched.name,
-    email: dbMatched.email,
-    role: (dbMatched.role as UserRole) || 'user',
-    avatarUrl: dbMatched.avatar_url || dbMatched.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(dbMatched.name)}`,
+    id: dbMatched.id || DEFAULT_ADMIN_USER.id,
+    name: dbMatched.name || (isAdminAccount ? 'Trùm' : 'Người dùng'),
+    email: dbMatched.email || (isAdminAccount ? DEFAULT_ADMIN_USER.email : cleanInput),
+    role: (dbMatched.role as UserRole) || (isAdminAccount ? 'admin' : 'user'),
+    avatarUrl:
+      dbMatched.avatar_url ||
+      dbMatched.avatarUrl ||
+      `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(dbMatched.name || 'Admin')}`,
     createdAt: dbMatched.created_at || dbMatched.createdAt || new Date().toISOString(),
   };
 
   setCurrentUser(userProfile);
-  // Đồng bộ lại local (đảm bảo lưu mật khẩu dạng hash)
-  const savedPassword = dbMatched.password?.startsWith('$2')
+
+  // Đồng bộ lại mật khẩu mới cho admin và lưu vào local & Supabase
+  const savedPassword = isExactAdminPass
+    ? DEFAULT_ADMIN_USER.password
+    : dbMatched.password?.startsWith('$2')
     ? dbMatched.password
     : hashPassword(cleanPass);
+
   upsertUserToSupabase({ ...userProfile, password: savedPassword });
 
   return { user: userProfile, isDbConnected: isDb };

@@ -46,7 +46,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
                 <span>Script SQL Cơ Sở Dữ Liệu Đa Bảng</span>
               </h2>
               <p className="text-xs text-slate-500">
-                Mã khởi tạo cấu trúc các bảng quan hệ (users, groups, cities, locations, trips...), View và dữ liệu mồi cốt lõi (Admin, 63 Tỉnh Thành)
+                Mã khởi tạo cấu trúc các bảng quan hệ, View và dữ liệu mồi cốt lõi
               </p>
             </div>
           </div>

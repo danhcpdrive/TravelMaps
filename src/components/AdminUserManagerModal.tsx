@@ -96,13 +96,24 @@ export const AdminUserManagerModal: React.FC<AdminUserManagerModalProps> = ({
 
   // Handle role change
   const handleRoleChange = async (user: UserProfile, targetRole: UserRole) => {
+    if (String(user.id) === '1' || user.email.toLowerCase() === 'caophuocdanh@hotmail.com') {
+      if (targetRole !== 'admin') {
+        setStatusMessage({ type: 'error', text: 'Admin ID:1 không thể giáng xuống làm user!' });
+        return;
+      }
+    }
+
     if (user.id === currentUser.id) {
       setStatusMessage({ type: 'error', text: 'Bạn không thể tự giáng cấp tài khoản Admin đang đăng nhập!' });
       return;
     }
 
     try {
-      await updateUserRoleInDb(user.id, user.email, targetRole);
+      const res = await updateUserRoleInDb(user.id, user.email, targetRole);
+      if (res.error) {
+        setStatusMessage({ type: 'error', text: res.error });
+        return;
+      }
       setStatusMessage({
         type: 'success',
         text: `Đã cập nhật vai trò của ${user.name} thành ${targetRole === 'admin' ? 'Quản Trị Viên (Admin)' : 'Thành Viên (User)'}`,
@@ -171,6 +182,11 @@ export const AdminUserManagerModal: React.FC<AdminUserManagerModalProps> = ({
   // Handle Delete User
   const handleConfirmDeleteUser = async () => {
     if (!deleteTargetUser) return;
+    if (String(deleteTargetUser.id) === '1' || deleteTargetUser.email.toLowerCase() === 'caophuocdanh@hotmail.com') {
+      setStatusMessage({ type: 'error', text: 'Admin ID:1 không thể xóa khỏi hệ thống!' });
+      setDeleteTargetUser(null);
+      return;
+    }
     if (deleteTargetUser.id === currentUser.id) {
       setStatusMessage({ type: 'error', text: 'Bạn không thể xóa tài khoản Admin đang đăng nhập!' });
       setDeleteTargetUser(null);
@@ -178,7 +194,12 @@ export const AdminUserManagerModal: React.FC<AdminUserManagerModalProps> = ({
     }
 
     try {
-      await deleteUserInDb(deleteTargetUser.id, deleteTargetUser.email);
+      const res = await deleteUserInDb(deleteTargetUser.id, deleteTargetUser.email);
+      if (res.error) {
+        setStatusMessage({ type: 'error', text: res.error });
+        setDeleteTargetUser(null);
+        return;
+      }
       setStatusMessage({
         type: 'success',
         text: `Đã xóa tài khoản ${deleteTargetUser.name} khỏi hệ thống!`,
@@ -352,6 +373,7 @@ export const AdminUserManagerModal: React.FC<AdminUserManagerModalProps> = ({
                   {filteredUsers.map((user) => {
                     const badge = getRoleBadge(user.role);
                     const isSelf = user.id === currentUser.id;
+                    const isRootAdmin = String(user.id) === '1' || user.email.toLowerCase() === 'caophuocdanh@hotmail.com';
 
                     return (
                       <tr key={user.id} className="hover:bg-slate-50/80 transition">
@@ -369,13 +391,18 @@ export const AdminUserManagerModal: React.FC<AdminUserManagerModalProps> = ({
                             <div>
                               <div className="flex items-center gap-1.5">
                                 <span className="font-bold text-slate-900">{user.name}</span>
-                                {isSelf && (
+                                {isRootAdmin && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 font-bold border border-purple-200">
+                                    Admin Gốc
+                                  </span>
+                                )}
+                                {isSelf && !isRootAdmin && (
                                   <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
                                     Tôi
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[10px] text-slate-400 font-mono">ID: {user.id.substring(0, 12)}...</span>
+                              <span className="text-[10px] text-slate-400 font-mono">ID: #{String(user.id)}</span>
                             </div>
                           </div>
                         </td>
@@ -412,12 +439,18 @@ export const AdminUserManagerModal: React.FC<AdminUserManagerModalProps> = ({
                             {user.role === 'admin' ? (
                               <button
                                 type="button"
-                                disabled={isSelf}
+                                disabled={isSelf || isRootAdmin}
                                 onClick={() => handleRoleChange(user, 'user')}
-                                title={isSelf ? 'Không thể giáng cấp bản thân' : 'Giáng cấp xuống Thành Viên'}
+                                title={
+                                  isRootAdmin
+                                    ? 'Admin ID:1 không thể giáng xuống làm user'
+                                    : isSelf
+                                    ? 'Không thể giáng cấp bản thân'
+                                    : 'Giáng cấp xuống Thành Viên'
+                                }
                                 className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition ${
-                                  isSelf
-                                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                  isSelf || isRootAdmin
+                                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
                                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 cursor-pointer'
                                 }`}
                               >
@@ -450,12 +483,18 @@ export const AdminUserManagerModal: React.FC<AdminUserManagerModalProps> = ({
                             {/* Delete User */}
                             <button
                               type="button"
-                              disabled={isSelf}
+                              disabled={isSelf || isRootAdmin}
                               onClick={() => setDeleteTargetUser(user)}
-                              title={isSelf ? 'Không thể xóa tài khoản bản thân' : 'Xóa tài khoản người dùng'}
+                              title={
+                                isRootAdmin
+                                  ? 'Admin ID:1 không thể xóa'
+                                  : isSelf
+                                  ? 'Không thể xóa tài khoản bản thân'
+                                  : 'Xóa tài khoản người dùng'
+                              }
                               className={`p-1.5 rounded-lg border transition ${
-                                isSelf
-                                  ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
+                                isSelf || isRootAdmin
+                                  ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-60'
                                   : 'bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-700 border-slate-200 hover:border-red-200 cursor-pointer'
                               }`}
                             >

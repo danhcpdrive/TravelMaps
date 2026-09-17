@@ -252,7 +252,7 @@ export function splitPlaceToTables(place: TravelPlace): {
     id: place.id,
     name: place.name,
     group_id: place.group,
-    city_id: place.city_id || '',
+    city_id: place.city_id && place.city_id.trim() !== '' ? place.city_id.trim() : null,
     category: place.category || 'Địa điểm',
     lat: Number(place.coordinates.lat),
     lng: Number(place.coordinates.lng),
@@ -346,11 +346,12 @@ export const fetchGroupsFromSupabase = async (): Promise<ServiceGroupInfo[]> => 
 export const loadLocalCities = (): TravelCity[] => {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_CITIES_KEY);
-    if (!raw) return [];
+    if (!raw) return [...DEFAULT_CITIES].sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const list = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CITIES;
+    return [...list].sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
   } catch (e) {
-    return [];
+    return [...DEFAULT_CITIES].sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
   }
 };
 
@@ -383,8 +384,34 @@ export const fetchCitiesFromSupabase = async (client?: SupabaseClient | null): P
         lng: c.lng ? Number(c.lng) : undefined,
         sort_order: c.sort_order || 0,
       }));
-      saveLocalCities(cities);
-      return cities;
+
+      // Ensure that default destination cities (e.g. hoi_an, sa_pa, phu_quoc, hue) exist
+      const existingIds = new Set(cities.map((c) => c.id));
+      const missingDefaults = DEFAULT_CITIES.filter((c) => !existingIds.has(c.id));
+      if (missingDefaults.length > 0) {
+        try {
+          await sb.from('travel_cities').upsert(
+            missingDefaults.map((c) => ({
+              id: c.id,
+              name: c.name,
+              code: c.code || '',
+              lat: c.lat || 0,
+              lng: c.lng || 0,
+              sort_order: c.sort_order || 0,
+            })),
+            { onConflict: 'id' }
+          );
+          cities.push(...missingDefaults);
+        } catch (syncErr) {
+          console.warn('Failed to sync missing cities in Supabase:', syncErr);
+        }
+      }
+
+      // Sắp xếp danh sách thành phố chuẩn theo A-Z
+      cities.sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
+
+      saveLocalCities(cities.length > 0 ? cities : DEFAULT_CITIES);
+      return cities.length > 0 ? cities : DEFAULT_CITIES;
     }
     if (error) {
       console.warn('Supabase query error for travel_cities:', error.message);
@@ -486,9 +513,49 @@ export const upsertPlaceToSupabase = async (place: TravelPlace): Promise<boolean
   try {
     const { location, detail } = splitPlaceToTables(place);
 
-    const { error: locError } = await client
+    let { error: locError } = await client
       .from('travel_locations')
       .upsert(location, { onConflict: 'id' });
+
+    // Handle foreign key constraint violation on city_id (error code 23503)
+    if (locError && (locError.code === '23503' || String(locError.message || '').includes('foreign key constraint'))) {
+      console.warn(`Foreign key violation on city_id "${location.city_id}". Attempting to ensure city exists in Supabase...`);
+      if (location.city_id) {
+        const foundCity = DEFAULT_CITIES.find((c) => c.id === location.city_id);
+        const cityToInsert = {
+          id: location.city_id,
+          name: foundCity?.name || place.cityName || location.city_id,
+          code: foundCity?.code || '',
+          lat: foundCity?.lat || location.lat || 0,
+          lng: foundCity?.lng || location.lng || 0,
+          sort_order: foundCity?.sort_order || 99,
+        };
+        try {
+          const { error: cityInsertError } = await client
+            .from('travel_cities')
+            .upsert(cityToInsert, { onConflict: 'id' });
+
+          if (!cityInsertError) {
+            const retryRes = await client
+              .from('travel_locations')
+              .upsert(location, { onConflict: 'id' });
+            locError = retryRes.error;
+          }
+        } catch (cityErr) {
+          console.warn('Could not auto-insert missing city:', cityErr);
+        }
+      }
+
+      // If still failing with foreign key constraint, fallback to city_id: null to prevent data loss
+      if (locError && (locError.code === '23503' || String(locError.message || '').includes('foreign key constraint'))) {
+        console.warn('Fallback: saving location with city_id: null to prevent data loss.');
+        const fallbackLocation = { ...location, city_id: null };
+        const fallbackRes = await client
+          .from('travel_locations')
+          .upsert(fallbackLocation, { onConflict: 'id' });
+        locError = fallbackRes.error;
+      }
+    }
 
     if (locError) {
       console.error('Failed to upsert to travel_locations:', locError);
@@ -1140,6 +1207,20 @@ export const fetchUsersFromSupabase = async (): Promise<Array<UserProfile & { pa
   }
 };
 
+export function isMissingTableOrSchemaError(error: any): boolean {
+  if (!error) return false;
+  const code = String(error.code || '');
+  const msg = String(error.message || '').toLowerCase();
+  return (
+    code === 'PGRST205' ||
+    code === '42P01' ||
+    msg.includes('schema cache') ||
+    msg.includes('could not find the table') ||
+    msg.includes('relation') ||
+    msg.includes('does not exist')
+  );
+}
+
 export const upsertUserToSupabase = async (user: UserProfile & { password?: string }): Promise<boolean> => {
   // Viewer là khách thăm quan tự do, không lưu tài khoản hay mật khẩu vào database
   if (user.role === 'viewer' || !user.email) return true;
@@ -1159,20 +1240,95 @@ export const upsertUserToSupabase = async (user: UserProfile & { password?: stri
   if (!client) return true;
 
   try {
+    const payload: any = {
+      name: user.name,
+      email: user.email.toLowerCase(),
+      password: user.password || '123456',
+      role: user.role,
+      avatar_url: user.avatarUrl || '',
+      updated_at: new Date().toISOString(),
+    };
+
+    // Chỉ đính kèm id nếu là số hợp lệ (> 0), tránh lỗi bigint parsing khi id là chuỗi custom
+    if (user.id && /^\d+$/.test(String(user.id)) && Number(user.id) > 0) {
+      payload.id = Number(user.id);
+    }
+
     const { error } = await client.from('travel_users').upsert(
-      {
-        id: user.id,
-        name: user.name,
-        email: user.email.toLowerCase(),
-        password: user.password || '123456',
-        role: user.role,
-        avatar_url: user.avatarUrl || '',
-        updated_at: new Date().toISOString(),
-      },
+      payload,
       { onConflict: 'email' }
     );
-    return !error;
-  } catch (e) {
+
+    if (error) {
+      if (isMissingTableOrSchemaError(error)) {
+        console.warn('Bảng travel_users chưa được tạo hoặc cache schema chưa sẵn sàng trên Supabase. Đã lưu an toàn vào bộ nhớ cục bộ.');
+        return true;
+      }
+
+      console.warn('Thử cập nhật user theo email:', error.message || error);
+      // Fallback: Cập nhật trực tiếp theo email
+      const { error: updateErr } = await client
+        .from('travel_users')
+        .update({
+          name: user.name,
+          avatar_url: user.avatarUrl || '',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('email', user.email.toLowerCase());
+
+      if (updateErr) {
+        if (!isMissingTableOrSchemaError(updateErr)) {
+          console.warn('Không thể đồng bộ user lên Supabase:', updateErr.message || updateErr);
+        }
+        return false;
+      }
+    }
+    return true;
+  } catch (e: any) {
+    if (!isMissingTableOrSchemaError(e)) {
+      console.warn('Lỗi khi lưu user lên Supabase:', e?.message || e);
+    }
+    return false;
+  }
+};
+
+/**
+ * Cập nhật avatar_url trực tiếp lên cơ sở dữ liệu Supabase theo email hoặc ID
+ */
+export const updateUserAvatarInSupabase = async (
+  emailOrId: string,
+  avatarUrl: string
+): Promise<boolean> => {
+  const client = getSupabaseClient();
+  if (!client) return true;
+
+  try {
+    const isNumeric = /^\d+$/.test(String(emailOrId));
+    let query = client.from('travel_users').update({
+      avatar_url: avatarUrl,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (isNumeric) {
+      query = query.eq('id', Number(emailOrId));
+    } else {
+      query = query.eq('email', emailOrId.toLowerCase());
+    }
+
+    const { error } = await query;
+    if (error) {
+      if (isMissingTableOrSchemaError(error)) {
+        console.warn('Bảng travel_users chưa có trên Supabase để lưu avatar. Avatar đã được áp dụng trong phiên làm việc.');
+        return true;
+      }
+      console.warn('Lỗi cập nhật avatar lên Supabase:', error.message || error);
+      return false;
+    }
+    return true;
+  } catch (e: any) {
+    if (!isMissingTableOrSchemaError(e)) {
+      console.warn('Exception khi cập nhật avatar:', e?.message || e);
+    }
     return false;
   }
 };

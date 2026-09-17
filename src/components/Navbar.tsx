@@ -1,11 +1,9 @@
 import React from 'react';
 import {
   Compass,
-  Upload,
   Plus,
   Navigation,
   RefreshCw,
-  Code2,
   Calendar,
   MessageSquare,
   Coins,
@@ -13,7 +11,6 @@ import {
   Flag,
   LogIn,
   Share2,
-  Users,
 } from 'lucide-react';
 import { SupabaseConfigStatus, UserProfile } from '../types';
 import { getRoleBadge } from '../lib/auth';
@@ -30,8 +27,8 @@ interface NavbarProps {
   supabaseStatus: SupabaseConfigStatus | null;
   isLoading: boolean;
   onRefreshData: () => void;
-  onOpenImportExport: () => void;
-  onOpenSupabaseModal: () => void;
+  onOpenImportExport?: () => void;
+  onOpenSupabaseModal?: () => void;
   onOpenAddModal: () => void;
   onOpenTripModal: () => void;
   onOpenReviewModal: () => void;
@@ -218,59 +215,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             ) : (
               <div className="flex items-center gap-1 shrink-0">
-                {/* Profile / Hồ Sơ */}
-                {onOpenUserProfileModal && (
-                  <button
-                    type="button"
-                    onClick={onOpenUserProfileModal}
-                    className="p-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 transition cursor-pointer shadow-xs whitespace-nowrap shrink-0"
-                    title="Trang quản lý hồ sơ cá nhân"
-                  >
-                    <User className="w-4 h-4 text-teal-600" />
-                  </button>
-                )}
-
-                {/* Quản Lý User (Admin) */}
-                {isAdmin && onOpenAdminUserModal && (
-                  <button
-                    type="button"
-                    onClick={onOpenAdminUserModal}
-                    className="p-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 transition cursor-pointer shadow-xs whitespace-nowrap shrink-0"
-                    title="Quản lý danh sách người dùng & phân quyền (Admin)"
-                  >
-                    <Users className="w-4 h-4 text-purple-600" />
-                  </button>
-                )}
-
-                {/* SQL DB (Admin) */}
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={onOpenSupabaseModal}
-                    title="Xem mã Script SQL Database (Admin)"
-                    className="p-1.5 rounded-lg border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-800 transition cursor-pointer whitespace-nowrap shrink-0"
-                  >
-                    <Code2 className="w-4 h-4 text-teal-600" />
-                  </button>
-                )}
-
-                {/* Import / Backup (Admin) - Icon only */}
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={onOpenImportExport}
-                    title="Import & Export Dữ liệu (SQL / JSON) (Admin)"
-                    className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 transition cursor-pointer whitespace-nowrap shrink-0"
-                  >
-                    <Upload className="w-4 h-4 text-indigo-600" />
-                  </button>
-                )}
-
+                {/* Nút Hồ Sơ Cá Nhân (thay thế nút Đăng Nhập khi đã đăng nhập thành công) */}
                 <button
                   type="button"
-                  onClick={onOpenAuthModal}
-                  className="px-2 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1 transition cursor-pointer shadow-xs whitespace-nowrap shrink-0"
-                  title="Chuyển quyền hoặc Đăng xuất"
+                  onClick={onOpenUserProfileModal}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+                  title={`Trang cá nhân & Quản lý hồ sơ (${currentUser?.name || 'Tài khoản'})`}
                 >
                   <div className="w-4 h-4 rounded-full overflow-hidden bg-teal-100 border border-teal-200 shrink-0 flex items-center justify-center text-[10px] text-teal-800">
                     {currentUser?.avatarUrl ? (
@@ -279,7 +229,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <User className="w-3 h-3 text-teal-700" />
                     )}
                   </div>
-                  <span className="truncate max-w-[50px] sm:max-w-[70px] hidden md:inline">{currentUser?.name}</span>
+                  <span className="truncate max-w-[60px] sm:max-w-[90px]">{currentUser?.name || 'Hồ sơ'}</span>
                   {roleMeta && (
                     <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold border ${roleMeta.badgeBg}`}>
                       {roleMeta.icon}

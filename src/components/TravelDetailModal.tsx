@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TravelPlace, UserProfile } from '../types';
-import { SERVICE_GROUPS_MAP } from '../lib/geoUtils';
+import { SERVICE_GROUPS_MAP, formatCoordinate } from '../lib/geoUtils';
 import {
   X,
   MapPin,
@@ -364,7 +364,7 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
               <div className="flex-1">
                 <p className="font-semibold text-xs text-slate-900">{place.address || 'Chưa cập nhật địa chỉ cụ thể'}</p>
                 <p className="text-[11px] text-slate-500 font-mono mt-0.5">
-                  Tọa độ: {placeLat.toFixed(6)}, {placeLng.toFixed(6)}
+                  Tọa độ: {formatCoordinate(placeLat)}, {formatCoordinate(placeLng)}
                 </p>
               </div>
             </div>

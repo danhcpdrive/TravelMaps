@@ -187,11 +187,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Email
+                </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
-                    type="email"
+                    type="text"
                     required
                     placeholder="name@example.com"
                     value={email}

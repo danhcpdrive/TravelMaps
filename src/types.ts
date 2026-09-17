@@ -48,7 +48,7 @@ export interface TravelLocationRecord {
   id: string;
   name: string;
   group_id: ServiceGroup;
-  city_id?: string;
+  city_id?: string | null;
   category?: string;
   lat: number;
   lng: number;
@@ -211,6 +211,7 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   avatarUrl?: string;
+  phone?: string;
   createdAt: string;
 }
 

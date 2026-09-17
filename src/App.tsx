@@ -38,7 +38,7 @@ import {
   deleteReportInDb,
 } from './lib/supabase';
 import { getCurrentUser, canAddPlace } from './lib/auth';
-import { applyUserDistance, filterAndSortPlaces } from './lib/geoUtils';
+import { applyUserDistance, filterAndSortPlaces, DEFAULT_CITIES } from './lib/geoUtils';
 import { Navbar } from './components/Navbar';
 import { TravelList } from './components/TravelList';
 import { TravelMapView } from './components/TravelMapView';
@@ -671,29 +671,51 @@ export default function App() {
         onClose={() => setIsImportExportOpen(false)}
         places={places}
         onImport={async (imported, extraData) => {
+          // 1. Ensure all referenced cities exist in Supabase FIRST to prevent foreign key errors (23503)
+          const citiesMap = new Map<string, TravelCity>();
+          DEFAULT_CITIES.forEach((c) => citiesMap.set(c.id, c));
+          if (extraData?.cities) {
+            extraData.cities.forEach((c) => citiesMap.set(c.id, c));
+          }
+          imported.forEach((p) => {
+            if (p.city_id && !citiesMap.has(p.city_id)) {
+              citiesMap.set(p.city_id, {
+                id: p.city_id,
+                name: p.cityName || p.city_id,
+                code: '',
+                sort_order: 99,
+              });
+            }
+          });
+
+          const allCities: TravelCity[] = Array.from(citiesMap.values());
+          saveLocalCities(allCities);
+          setCities(allCities);
+
+          const sb = getSupabaseClient();
+          if (sb) {
+            try {
+              await sb.from('travel_cities').upsert(
+                allCities.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  code: c.code || '',
+                  lat: c.lat || 0,
+                  lng: c.lng || 0,
+                  sort_order: c.sort_order || 0,
+                })),
+                { onConflict: 'id' }
+              );
+            } catch (e) {
+              console.warn('Failed to upsert cities in Supabase:', e);
+            }
+          }
+
+          // 2. Now upsert places safely
           for (const p of imported) {
             await upsertPlaceToSupabase(p);
           }
-          if (extraData?.cities && extraData.cities.length > 0) {
-            saveLocalCities(extraData.cities);
-            const sb = getSupabaseClient();
-            if (sb) {
-              try {
-                await sb.from('travel_cities').upsert(
-                  extraData.cities.map((c) => ({
-                    id: c.id,
-                    name: c.name,
-                    code: c.code || '',
-                    lat: c.lat || 0,
-                    lng: c.lng || 0,
-                    sort_order: c.sort_order || 0,
-                  }))
-                );
-              } catch (e) {
-                console.warn('Failed to upsert cities in Supabase:', e);
-              }
-            }
-          }
+
           await loadData();
         }}
         onClearAll={async () => {

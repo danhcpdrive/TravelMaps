@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { TravelPlace, ServiceGroup, TravelCity } from '../types';
 import { SERVICE_GROUPS, DEFAULT_CITIES } from '../lib/geoUtils';
 import {
@@ -35,7 +35,10 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
   userLocation,
   cities,
 }) => {
-  const activeCities = cities || [];
+  // Sắp xếp danh sách thành phố theo thứ tự chữ cái A-Z
+  const activeCities = useMemo(() => {
+    return [...(cities || [])].sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
+  }, [cities]);
   const [activeTab, setActiveTab] = useState<'basic' | 'details'>('basic');
 
   const [formData, setFormData] = useState<Partial<TravelPlace>>({
@@ -66,7 +69,7 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
     if (initialPlace) {
       setFormData({
         ...initialPlace,
-        coordinates: initialPlace.coordinates || { lat: 16.0544, lng: 108.2022 },
+        coordinates: initialPlace.coordinates || { lat: 16.05441235, lng: 108.20223841 },
       });
       setGalleryText(
         Array.isArray(initialPlace.galleryUrls) ? initialPlace.galleryUrls.join('\n') : ''
@@ -80,10 +83,10 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
         address: '',
         coordinates: (userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number')
           ? {
-              lat: Number(userLocation.lat.toFixed(8)),
-              lng: Number(userLocation.lng.toFixed(8)),
+              lat: userLocation.lat,
+              lng: userLocation.lng,
             }
-          : { lat: 16.0544, lng: 108.2022 },
+          : { lat: 16.05441235, lng: 108.20223841 },
         phone: '',
         contact: '',
         rating: 4.8,
@@ -132,11 +135,11 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
       coordinates: {
         lat: (() => {
           const val = Number(formData.coordinates?.lat);
-          return (!isNaN(val) && val !== 0) ? val : 16.0544;
+          return (!isNaN(val) && val !== 0) ? val : 16.05441235;
         })(),
         lng: (() => {
           const val = Number(formData.coordinates?.lng);
-          return (!isNaN(val) && val !== 0) ? val : 108.2022;
+          return (!isNaN(val) && val !== 0) ? val : 108.20223841;
         })(),
       },
       phone: formData.phone?.trim() || '',
@@ -168,8 +171,8 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
       setFormData((prev) => ({
         ...prev,
         coordinates: {
-          lat: Number(userLocation.lat.toFixed(8)),
-          lng: Number(userLocation.lng.toFixed(8)),
+          lat: userLocation.lat,
+          lng: userLocation.lng,
         },
       }));
     } else {
@@ -374,18 +377,19 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-[10px] text-slate-500">Vĩ độ (Latitude):</span>
+                    <span className="text-[10px] text-slate-600 font-medium">Vĩ độ (Latitude - tối thiểu 8 số thập phân):</span>
                     <input
                       type="number"
-                      step="0.00000001"
+                      step="any"
                       required
-                      value={formData.coordinates?.lat ?? 16.0544}
+                      placeholder="Ví dụ: 10.46365546"
+                      value={formData.coordinates?.lat ?? 16.05441235}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
                           coordinates: {
                             lat: parseFloat(e.target.value) || 0,
-                            lng: formData.coordinates?.lng ?? 108.2022,
+                            lng: formData.coordinates?.lng ?? 108.20223841,
                           },
                         })
                       }
@@ -394,17 +398,18 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-slate-500">Kinh độ (Longitude):</span>
+                    <span className="text-[10px] text-slate-600 font-medium">Kinh độ (Longitude - tối thiểu 8 số thập phân):</span>
                     <input
                       type="number"
-                      step="0.00000001"
+                      step="any"
                       required
-                      value={formData.coordinates?.lng ?? 108.2022}
+                      placeholder="Ví dụ: 106.56052423418281"
+                      value={formData.coordinates?.lng ?? 108.20223841}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
                           coordinates: {
-                            lat: formData.coordinates?.lat ?? 16.0544,
+                            lat: formData.coordinates?.lat ?? 16.05441235,
                             lng: parseFloat(e.target.value) || 0,
                           },
                         })
@@ -412,6 +417,10 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
                       className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
                     />
                   </div>
+
+                  <p className="text-[10px] text-teal-700 font-medium col-span-2 pt-0.5">
+                    📍 Tọa độ GPS chuẩn WGS84 yêu cầu tối thiểu 8 chữ số sau dấu chấm (ví dụ: 10.46365546 hoặc 10.830969938724751, 106.56052423418281).
+                  </p>
                 </div>
               </div>
 

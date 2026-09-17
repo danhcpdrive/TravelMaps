@@ -40,11 +40,14 @@ interface UserProfileModalProps {
 }
 
 const PRESET_AVATARS = [
-  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Trouble',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=TechBot',
+  'https://api.dicebear.com/7.x/personas/svg?seed=TrumAdmin',
+  'https://api.dicebear.com/7.x/lorelei/svg?seed=TravelVN',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Explorer88',
+  'https://api.dicebear.com/7.x/micah/svg?seed=SunnyDay',
+  'https://api.dicebear.com/7.x/open-peeps/svg?seed=HappyGo',
 ];
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -387,40 +390,48 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
                 {/* Preset Avatars Selection */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Ảnh đại diện
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Ảnh đại diện (Avatar)
+                    </label>
+                    <span className="text-[10px] text-teal-700 font-medium">
+                      Hỗ trợ DiceBear & URL ảnh online
+                    </span>
+                  </div>
                   
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[11px] text-slate-500">Chọn mẫu nhanh:</span>
-                    <div className="flex items-center gap-1.5">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 mb-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-slate-600">Chọn mẫu Avatar DiceBear nhanh:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const styles = ['avataaars', 'bottts', 'personas', 'lorelei', 'adventurer', 'micah', 'open-peeps'];
+                          const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+                          const randomSeed = Math.random().toString(36).substring(2, 9);
+                          setAvatarUrl(`https://api.dicebear.com/7.x/${randomStyle}/svg?seed=${randomSeed}`);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[10px] text-teal-800 font-bold hover:bg-teal-100 transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                      >
+                        <Sparkles className="w-3 h-3 text-teal-600" />
+                        <span>🎲 Đổi ngẫu nhiên</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 overflow-x-auto py-1">
                       {PRESET_AVATARS.map((url, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => setAvatarUrl(url)}
-                          className={`w-7 h-7 rounded-full overflow-hidden border-2 transition cursor-pointer ${
+                          className={`w-9 h-9 rounded-full overflow-hidden border-2 transition cursor-pointer shrink-0 ${
                             avatarUrl === url
-                              ? 'border-teal-600 ring-2 ring-teal-500/30'
-                              : 'border-slate-200 hover:border-slate-400'
+                              ? 'border-teal-600 ring-2 ring-teal-500/40 scale-105 shadow-xs'
+                              : 'border-slate-200 hover:border-teal-400 hover:scale-102 bg-white'
                           }`}
                         >
-                          <img src={url} alt={`Preset ${idx}`} className="w-full h-full object-cover" />
+                          <img src={url} alt={`DiceBear ${idx}`} className="w-full h-full object-cover" />
                         </button>
                       ))}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAvatarUrl(
-                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-                              name || 'random'
-                            )}`
-                          )
-                        }
-                        className="px-2 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[10px] text-teal-800 font-bold hover:bg-teal-100 transition"
-                      >
-                        🎲 Tạo ngẫu nhiên
-                      </button>
                     </div>
                   </div>
 
@@ -430,7 +441,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       type="url"
                       value={avatarUrl}
                       onChange={(e) => setAvatarUrl(e.target.value)}
-                      placeholder="Hoặc dán URL ảnh trực tiếp (https://...)"
+                      placeholder="Hoặc dán URL ảnh trực tiếp (https://api.dicebear.com/... hoặc https://...)"
                       className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
