@@ -92,7 +92,7 @@ export const ReportPlaceModal: React.FC<ReportPlaceModalProps> = ({
     setIsSubmitting(true);
 
     const report: PlaceReport = {
-      id: `rep-${Date.now()}`,
+      id: Date.now().toString(),
       locationId: place.id,
       locationName: place.name,
       locationAddress: place.address,

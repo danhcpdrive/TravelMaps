@@ -367,7 +367,7 @@ export function parseSqlScript(rawSql: string): ParsedSqlResult {
 
   // 4. Assemble Travel Places (combining locations + details)
   const places: TravelPlace[] = rawLocations.map((loc, idx) => {
-    const id = String(loc.id || `place-sql-${Date.now()}-${idx}`);
+    const id = String(loc.id || Date.now().toString() + idx.toString());
     const detail = detailByLocationId.get(id) || {};
 
     const rawLat = loc.lat ?? loc.latitude;
@@ -424,7 +424,7 @@ export function parseSqlScript(rawSql: string): ParsedSqlResult {
 
   // 5. Process Reviews
   const reviews: TravelReviewLog[] = rawReviews.map((r, idx) => ({
-    id: String(r.id || `rev-${Date.now()}-${idx}`),
+    id: String(r.id || Date.now().toString() + idx.toString()),
     userId: r.user_id ? String(r.user_id) : undefined,
     userEmail: r.user_email ? String(r.user_email) : undefined,
     userName: r.user_name ? String(r.user_name) : undefined,
@@ -451,7 +451,7 @@ export function parseSqlScript(rawSql: string): ParsedSqlResult {
 
   // 6. Process Expenses
   const expenses: TravelExpense[] = rawExpenses.map((e, idx) => ({
-    id: String(e.id || `exp-${Date.now()}-${idx}`),
+    id: String(e.id || Date.now().toString() + idx.toString()),
     userId: e.user_id ? String(e.user_id) : undefined,
     userEmail: e.user_email ? String(e.user_email) : undefined,
     userName: e.user_name ? String(e.user_name) : undefined,
@@ -468,7 +468,7 @@ export function parseSqlScript(rawSql: string): ParsedSqlResult {
 
   // 7. Process Trips
   const trips: TravelTrip[] = rawTrips.map((t, idx) => ({
-    id: String(t.id || `trip-${Date.now()}-${idx}`),
+    id: String(t.id || Date.now().toString() + idx.toString()),
     userId: t.user_id ? String(t.user_id) : undefined,
     userEmail: t.user_email ? String(t.user_email) : undefined,
     userName: t.user_name ? String(t.user_name) : undefined,

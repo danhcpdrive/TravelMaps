@@ -171,15 +171,7 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
             </div>
           </div>
         ) : (
-          <div className="relative h-44 sm:h-52 w-full overflow-hidden">
-            <PlaceSvgThumbnail
-              group={place.group}
-              category={place.category}
-              name={place.name}
-              variant="banner"
-              className="w-full h-full"
-            />
-
+          <div className="relative w-full overflow-hidden bg-blue-600 pt-16 pb-4 px-4 shadow-inner">
             {/* Close & Favorite Floating */}
             <div className="absolute top-3 right-3 flex items-center gap-2 z-20">
               <button
@@ -209,9 +201,9 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
               </button>
             </div>
 
-            {/* Bottom Title inside SVG Banner */}
-            <div className="absolute bottom-3 left-4 right-4 text-white z-20">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
+            {/* Title inside Flat Banner */}
+            <div className="text-white z-20 relative">
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold rounded-md border ${groupMeta.badgeBg}`}>
                   {groupMeta.icon} {groupMeta.label}
                 </span>
@@ -222,7 +214,7 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
                   </span>
                 )}
               </div>
-              <h2 className="text-lg sm:text-xl font-bold leading-tight drop-shadow-md">{place.name}</h2>
+              <h2 className="text-lg sm:text-xl font-bold leading-tight drop-shadow-sm">{place.name}</h2>
             </div>
           </div>
         )}
@@ -288,8 +280,13 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
                     onOpenReviewModal(place);
                   }
                 }}
-                className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 hover:bg-amber-100 text-amber-900 text-xs font-bold flex flex-col items-center gap-1 transition cursor-pointer"
+                className="relative p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 hover:bg-amber-100 text-amber-900 text-xs font-bold flex flex-col items-center gap-1 transition cursor-pointer"
               >
+                {place.reviewsCount ? (
+                  <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white rounded-full flex items-center justify-center text-[10px] px-1 shadow-sm">
+                    {place.reviewsCount}
+                  </span>
+                ) : null}
                 <MessageSquare className="w-4 h-4 text-amber-600" />
                 <span>Viết Cảm Nhận</span>
               </button>

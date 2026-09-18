@@ -144,7 +144,7 @@ export const TripPlannerModal: React.FC<TripPlannerModalProps> = ({
 
   const handleStartCreateTrip = () => {
     setTripForm({
-      id: `trip-${Date.now()}`,
+      id: Date.now().toString(),
       userId: currentUser?.id,
       userEmail: currentUser?.email,
       userName: currentUser?.name,
@@ -169,7 +169,7 @@ export const TripPlannerModal: React.FC<TripPlannerModalProps> = ({
     }
 
     const savedTrip: TravelTrip = {
-      id: tripForm.id || `trip-${Date.now()}`,
+      id: tripForm.id || Date.now().toString(),
       userId: tripForm.userId || currentUser?.id,
       userEmail: tripForm.userEmail || currentUser?.email,
       userName: tripForm.userName || currentUser?.name,
@@ -194,7 +194,7 @@ export const TripPlannerModal: React.FC<TripPlannerModalProps> = ({
     if (!currentTrip) return;
     const existingStops = currentTrip.stops || [];
     const newStop: TripStop = {
-      id: `stop-${Date.now()}`,
+      id: Date.now().toString(),
       tripId: currentTrip.id,
       locationId,
       dayNumber,
@@ -274,7 +274,7 @@ export const TripPlannerModal: React.FC<TripPlannerModalProps> = ({
     }
 
     const newExpense: TravelExpense = {
-      id: `exp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: Date.now().toString() + Math.floor(Math.random() * 1000).toString(),
       userId: currentUser?.id,
       userEmail: currentUser?.email,
       userName: currentUser?.name,

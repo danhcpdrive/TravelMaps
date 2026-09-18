@@ -307,10 +307,15 @@ SELECT
     ELSE to_jsonb(d.gallery_urls) 
   END AS gallery_urls,
   COALESCE(d.website_url, ''::text) AS website_url,
+  (
+    SELECT COUNT(*) 
+    FROM public.travel_reviews_logs r 
+    WHERE r.location_id = l.id
+  ) AS reviews_count,
   l.created_at,
   l.updated_at
 FROM public.travel_locations l
-LEFT JOIN public.travel_location_details d ON l.id::text = d.location_id::text
+LEFT JOIN public.travel_location_details d ON l.id = d.location_id
 LEFT JOIN public.travel_groups g ON l.group_id::text = g.id::text
 LEFT JOIN public.travel_cities c ON l.city_id::text = c.id::text
 WHERE l.is_deleted = FALSE;

@@ -67,7 +67,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     }
 
     const newExp: TravelExpense = {
-      id: `exp-${Date.now()}`,
+      id: Date.now().toString(),
       userId: currentUser?.id,
       userEmail: currentUser?.email,
       userName: currentUser?.name,

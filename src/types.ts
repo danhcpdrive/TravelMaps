@@ -69,7 +69,6 @@ export interface TravelLocationRecord {
  * Tất cả thông tin chi tiết, hình ảnh, gợi ý, ghi chú, mức giá
  */
 export interface TravelLocationDetailRecord {
-  id: string;
   location_id: string;
   rating?: number;
   price_range?: string;

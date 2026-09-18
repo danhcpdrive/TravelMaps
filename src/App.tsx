@@ -525,6 +525,11 @@ export default function App() {
         place={detailPlace}
         currentUser={currentUser}
         onClose={() => setDetailPlace(null)}
+        onRequireAuth={(msg) => {
+          setAuthPromptMessage(msg);
+          setIsAuthModalOpen(true);
+          setDetailPlace(null);
+        }}
         onToggleChecked={handleToggleChecked}
         onToggleFavorite={handleToggleFavorite}
         onEditPlace={(place) => setFormPlace({ isOpen: true, data: place })}
@@ -538,10 +543,6 @@ export default function App() {
         onOpenReportModal={(place) => {
           setReportingPlace(place);
           setIsReportModalOpen(true);
-        }}
-        onRequireAuth={(msg) => {
-          setAuthPromptMessage(msg);
-          setIsAuthModalOpen(true);
         }}
         onViewOnMap={(place) => {
           setSelectedPlace(place);

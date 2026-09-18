@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { TravelPlace, FilterOptions, ServiceGroupInfo, TravelCity } from '../types';
 import { SERVICE_GROUPS, SERVICE_GROUPS_MAP, DISTANCE_FILTER_OPTIONS } from '../lib/geoUtils';
 import { PlaceSvgThumbnail } from './PlaceSvgThumbnail';
@@ -66,6 +66,11 @@ export const TravelList: React.FC<TravelListProps> = ({
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const listContainerRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef(0);
+
+  // Reset image errors when places change so that if a place's thumbnail is updated, it tries to load again
+  useEffect(() => {
+    setImageErrors({});
+  }, [places]);
 
   const activeGroups = groups && groups.length > 0 ? groups : SERVICE_GROUPS;
   const countSource = allPlaces && allPlaces.length > 0 ? allPlaces : places;

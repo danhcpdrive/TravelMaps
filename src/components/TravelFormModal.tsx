@@ -76,7 +76,7 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
       );
     } else {
       setFormData({
-        id: `place-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: Date.now().toString(),
         name: '',
         group: 'du_lich',
         category: 'Danh lam thắng cảnh',
@@ -125,7 +125,7 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
     const matchedCity = activeCities.find((c) => c.id === selectedCityId);
 
     const placeToSave: TravelPlace = {
-      id: formData.id || `place-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: formData.id || Date.now().toString(),
       name: formData.name.trim(),
       group: (formData.group as ServiceGroup) || 'du_lich',
       city_id: selectedCityId,

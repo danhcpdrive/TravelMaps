@@ -212,7 +212,7 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
       // Create rich Popup content container
       const popupDiv = document.createElement('div');
-      popupDiv.className = 'p-1 min-w-[250px] max-w-[290px] font-sans text-slate-900';
+      popupDiv.className = 'p-1 min-w-[280px] max-w-[340px] font-sans text-slate-900';
 
       const visitedTimeStr = place.visitedAt
         ? new Date(place.visitedAt).toLocaleDateString('vi-VN', {
@@ -236,7 +236,7 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
                   ${place.category}
                 </span>
               </div>
-              <h3 class="font-bold text-sm text-slate-900 leading-tight mt-1 truncate">${place.name}</h3>
+              <h3 class="font-bold text-sm text-slate-900 leading-tight mt-1 break-words whitespace-normal">${place.name}</h3>
             </div>
             ${
               place.rating
@@ -247,7 +247,7 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
             }
           </div>
 
-          <p class="text-xs text-slate-600 break-words">📍 ${place.address || 'Chưa có địa chỉ cụ thể'}</p>
+          <p class="text-xs text-slate-600 break-words whitespace-normal leading-relaxed">📍 ${place.address || 'Chưa có địa chỉ cụ thể'}</p>
 
           ${
             place.openingHours || place.priceRange

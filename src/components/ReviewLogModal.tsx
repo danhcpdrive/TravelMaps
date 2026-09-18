@@ -60,7 +60,7 @@ export const ReviewLogModal: React.FC<ReviewLogModalProps> = ({
     const placeObj = places.find((p) => p.id === formPlaceId);
 
     const newReview: TravelReviewLog = {
-      id: `rev-${Date.now()}`,
+      id: Date.now().toString(),
       userId: currentUser?.id,
       userEmail: currentUser?.email,
       userName: currentUser?.name,

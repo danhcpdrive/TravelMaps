@@ -276,7 +276,6 @@ export function splitPlaceToTables(place: TravelPlace): {
   };
 
   const detail: TravelLocationDetailRecord = {
-    id: `detail-${place.id}`,
     location_id: String(place.id),
     rating: place.rating !== undefined && place.rating !== null ? Number(place.rating) : 4.8,
     price_range: place.priceRange ? String(place.priceRange) : '',
