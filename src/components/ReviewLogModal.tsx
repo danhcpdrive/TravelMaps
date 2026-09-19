@@ -94,7 +94,7 @@ export const ReviewLogModal: React.FC<ReviewLogModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                Nhật Ký Trải Nghiệm & Check-in (travel_reviews_logs)
+                Nhật Ký Trải Nghiệm & Check-in
               </h2>
               <p className="text-xs text-slate-500">
                 Lưu lại cảm nhận thực tế, chi phí thực chi và hình ảnh kỉ niệm
@@ -279,7 +279,7 @@ export const ReviewLogModal: React.FC<ReviewLogModalProps> = ({
                 </div>
               ) : (
                 reviews.map((rev) => {
-                  const placeObj = places.find((p) => p.id === rev.locationId);
+                  const placeObj = places.find((p) => String(p.id) === String(rev.locationId));
                   return (
                     <div
                       key={rev.id}

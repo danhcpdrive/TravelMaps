@@ -148,12 +148,12 @@ function getYouthfulTheme(group: string, category?: string) {
     };
   }
 
-  // 8. Default Travel & Exploration: Solid Pastel Turquoise Mint
+  // 8. Default Travel & Exploration: Solid Fresh Emerald Green
   return {
     id: 'du_lich',
     label: 'Du lịch & Trải nghiệm',
-    primaryColor: '#E6FFFA', // Soft solid minty teal tint
-    textColor: '#0D9488', // Solid vibrant jade teal
+    primaryColor: '#ECFDF5', // Soft solid fresh emerald tint
+    textColor: '#059669', // Solid rich emerald green matching map pins
     renderIcon: (cls: string) => <Palmtree className={cls} />,
   };
 }

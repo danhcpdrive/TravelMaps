@@ -239,7 +239,7 @@ export const TravelFormModal: React.FC<TravelFormModalProps> = ({
               {/* Service Group Selector */}
               <div>
                 <label className="block text-slate-700 font-semibold mb-1.5">
-                  Nhóm Dịch Vụ (travel_groups) *
+                  Nhóm Dịch Vụ *
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {SERVICE_GROUPS.map((grp) => {

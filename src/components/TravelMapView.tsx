@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { TravelPlace } from '../types';
+import { TravelPlace, ServiceGroupInfo } from '../types';
 import { SERVICE_GROUPS_MAP } from '../lib/geoUtils';
 import {
   Layers,
@@ -20,6 +20,7 @@ interface TravelMapViewProps {
   onOpenDetailModal: (place: TravelPlace) => void;
   userLocation: { lat: number; lng: number; timestamp?: number } | null;
   onGetUserLocation?: () => void;
+  groups?: ServiceGroupInfo[];
 }
 
 export const TravelMapView: React.FC<TravelMapViewProps> = ({
@@ -31,6 +32,7 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
   onOpenDetailModal,
   userLocation,
   onGetUserLocation,
+  groups,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -162,18 +164,38 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
 
         const isSelected = selectedPlace?.id === place.id;
         const isChecked = place.checked;
-        const groupMeta = SERVICE_GROUPS_MAP[place.group] || SERVICE_GROUPS_MAP.du_lich;
-        const pinColor = groupMeta.markerColor;
+        const groupMeta = groups?.find((g) => g.id === place.group) || SERVICE_GROUPS_MAP[place.group] || SERVICE_GROUPS_MAP.du_lich;
+        const pinColor = groupMeta.markerColor || (place.group === 'du_lich' ? '#059669' : '#059669');
 
-      // Group SVG Icon
-      let iconInner = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>`;
-      if (place.group === 'an_uong') {
-        iconInner = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>`;
-      } else if (place.group === 'dich_vu') {
-        iconInner = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16"></path><path d="M9 7h1"></path><path d="M9 11h1"></path><path d="M9 15h1"></path><path d="M14 7h1"></path><path d="M14 11h1"></path><path d="M14 15h1"></path></svg>`;
-      } else if (place.group === 'giai_tri') {
-        iconInner = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"></path></svg>`;
-      }
+        // Group SVG Icon - crisp pure white (#ffffff), explicit dimensions, immune to CSS inheritance
+        let iconInner = '';
+        const catLower = (place.category || '').toLowerCase();
+
+        if (place.group === 'an_uong') {
+          // Food & Beverage (Ramen bowl / Utensils)
+          iconInner = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>`;
+        } else if (place.group === 'dich_vu') {
+          // Services & Accommodation (Hotel / Building)
+          iconInner = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16"></path><path d="M9 7h1"></path><path d="M9 11h1"></path><path d="M9 15h1"></path><path d="M14 7h1"></path><path d="M14 11h1"></path><path d="M14 15h1"></path></svg>`;
+        } else if (place.group === 'giai_tri') {
+          // Entertainment (Sparkles / Fun)
+          iconInner = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"></path></svg>`;
+        } else if (place.group === 'khac') {
+          // Other & Notes (Pin)
+          iconInner = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>`;
+        } else {
+          // Du lịch & Thắng cảnh (du_lich)
+          if (catLower.includes('núi') || catLower.includes('đèo') || catLower.includes('đỉnh') || catLower.includes('đồi')) {
+            // Mountain icon
+            iconInner = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="m8 3 4 8 5-5 5 15H2L8 3z"></path></svg>`;
+          } else if (catLower.includes('di tích') || catLower.includes('chùa') || catLower.includes('đền') || catLower.includes('tháp') || catLower.includes('bảo tàng') || catLower.includes('lăng')) {
+            // Historic Landmark icon
+            iconInner = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="11"></line><line x1="10" y1="18" x2="10" y2="11"></line><line x1="14" y1="18" x2="14" y2="11"></line><line x1="18" y1="18" x2="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg>`;
+          } else {
+            // Official Palmtree icon (Cây dừa bãi biển & danh lam thắng cảnh)
+            iconInner = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M13 8c0-2.76-2.46-5-5.5-5S2 5.24 2 8h2l1-1 1 1h4"></path><path d="M13 7.14A5.82 5.82 0 0 1 16.5 6c3.04 0 5.5 2.24 5.5 5h-3l-1-1-1 1h-3"></path><path d="M5.89 9.71c-2.15 2.15-2.3 5.47-.35 7.43l4.24-4.25.7-.7.71-.71 2.12-2.12c-1.95-1.96-5.27-1.8-7.42.35"></path><path d="M11 15.5c.5 2.5-.17 4.5-1 6.5h4c2-5.5-.5-12-1-14"></path></svg>`;
+          }
+        }
 
       // Custom marker HTML icon with group color & visited/favorite indicators
       const iconHtml = `
@@ -229,8 +251,9 @@ export const TravelMapView: React.FC<TravelMapViewProps> = ({
           <div class="flex items-start justify-between gap-2 border-b border-slate-100 pb-1.5">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded ${groupMeta.badgeBg}">
-                  ${groupMeta.label}
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold rounded border ${groupMeta.badgeBg}">
+                  <span>${groupMeta.icon}</span>
+                  <span>${groupMeta.label}</span>
                 </span>
                 <span class="inline-block px-1.5 py-0.5 text-[10px] font-medium rounded bg-slate-100 text-slate-700">
                   ${place.category}

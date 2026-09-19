@@ -10,15 +10,20 @@ import {
   UserProfile,
   ReportStatus,
   ServiceGroupInfo,
+  ServiceGroup,
   TravelCity,
 } from './types';
 import {
   fetchPlacesFromSupabase,
   fetchGroupsFromSupabase,
   loadLocalGroups,
+  saveLocalGroups,
   fetchCitiesFromSupabase,
   loadLocalCities,
   saveLocalCities,
+  saveLocalReviews,
+  saveLocalExpenses,
+  saveLocalTrips,
   getSupabaseClient,
   upsertPlaceToSupabase,
   bulkUpsertPlacesToSupabase,
@@ -372,6 +377,30 @@ export default function App() {
     await deleteReportInDb(reportId);
   };
 
+  // Update Service Group Marker Color
+  const handleUpdateGroupColor = async (groupId: ServiceGroup, newColor: string) => {
+    const updated = groups.map((g) => {
+      if (g.id === groupId) {
+        return {
+          ...g,
+          markerColor: newColor,
+        };
+      }
+      return g;
+    });
+    setGroups(updated);
+    saveLocalGroups(updated);
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('travel_groups').update({ marker_color: newColor }).eq('id', groupId);
+      } catch (e) {
+        console.warn('Could not sync group marker_color to Supabase:', e);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 text-slate-900 font-sans">
       
@@ -460,6 +489,7 @@ export default function App() {
               setFormPlace({ isOpen: true, data: place });
             }}
             onDeletePlace={handleDeletePlace}
+            onUpdateGroupColor={handleUpdateGroupColor}
           />
         </div>
 
@@ -468,6 +498,7 @@ export default function App() {
           <TravelMapView
             places={filteredPlaces}
             selectedPlace={selectedPlace}
+            groups={groups}
             onSelectPlace={(place) => setSelectedPlace(place)}
             onToggleChecked={handleToggleChecked}
             onToggleFavorite={handleToggleFavorite}
@@ -548,6 +579,7 @@ export default function App() {
           setSelectedPlace(place);
           setMobileTab('map');
         }}
+        reviews={reviews}
       />
 
       {/* Report Place Modal */}
@@ -684,6 +716,10 @@ export default function App() {
         isOpen={isImportExportOpen}
         onClose={() => setIsImportExportOpen(false)}
         places={places}
+        cities={cities}
+        reviews={reviews}
+        expenses={expenses}
+        trips={trips}
         onImport={async (imported, extraData) => {
           // 1. Ensure all referenced cities exist in Supabase FIRST to prevent foreign key errors (23503)
           const citiesMap = new Map<string, TravelCity>();
@@ -725,7 +761,88 @@ export default function App() {
             }
           }
 
-          // 2. Bulk upsert all places with fast batching and fallback
+          // 2. Sync reviews, expenses, trips if provided
+          if (extraData?.reviews && extraData.reviews.length > 0) {
+            saveLocalReviews(extraData.reviews);
+            if (sb) {
+              try {
+                await sb.from('travel_reviews_logs').upsert(
+                  extraData.reviews.map((r) => ({
+                    id: r.id,
+                    user_id: r.userId || null,
+                    user_email: r.userEmail || null,
+                    user_name: r.userName || null,
+                    location_id: r.locationId,
+                    visited_at: r.visitedAt || new Date().toISOString(),
+                    rating: r.rating || 5,
+                    actual_expense: r.actualExpense || 0,
+                    review_text: r.reviewText || '',
+                    captured_photos: r.capturedPhotos || [],
+                    weather: r.weather || '',
+                    companion: r.companion || '',
+                  })),
+                  { onConflict: 'id' }
+                );
+              } catch (e) {
+                console.warn('Failed to upsert reviews in Supabase:', e);
+              }
+            }
+          }
+
+          if (extraData?.expenses && extraData.expenses.length > 0) {
+            saveLocalExpenses(extraData.expenses);
+            if (sb) {
+              try {
+                await sb.from('travel_expenses').upsert(
+                  extraData.expenses.map((e) => ({
+                    id: e.id,
+                    user_id: e.userId || null,
+                    user_email: e.userEmail || null,
+                    user_name: e.userName || null,
+                    trip_id: e.tripId || null,
+                    location_id: e.locationId || null,
+                    title: e.title || 'Chi phí',
+                    category: e.category || 'food',
+                    amount: e.amount || 0,
+                    payment_method: e.paymentMethod || 'cash',
+                    receipt_url: e.receiptUrl || '',
+                    notes: e.notes || '',
+                  })),
+                  { onConflict: 'id' }
+                );
+              } catch (e) {
+                console.warn('Failed to upsert expenses in Supabase:', e);
+              }
+            }
+          }
+
+          if (extraData?.trips && extraData.trips.length > 0) {
+            saveLocalTrips(extraData.trips);
+            if (sb) {
+              try {
+                await sb.from('travel_trips').upsert(
+                  extraData.trips.map((t) => ({
+                    id: t.id,
+                    user_id: t.userId || null,
+                    user_email: t.userEmail || null,
+                    user_name: t.userName || null,
+                    title: t.title,
+                    description: t.description || '',
+                    start_date: t.startDate || null,
+                    end_date: t.endDate || null,
+                    budget: t.budget || 0,
+                    cover_image: t.coverImage || '',
+                    status: t.status || 'planning',
+                  })),
+                  { onConflict: 'id' }
+                );
+              } catch (e) {
+                console.warn('Failed to upsert trips in Supabase:', e);
+              }
+            }
+          }
+
+          // 3. Bulk upsert all places with fast batching and fallback
           await bulkUpsertPlacesToSupabase(imported);
 
           await loadData();

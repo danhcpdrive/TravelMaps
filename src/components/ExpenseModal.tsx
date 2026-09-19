@@ -98,7 +98,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                Sổ Chi Tiêu Du Lịch (travel_expenses)
+                Sổ Chi Tiêu Du Lịch
               </h2>
               <p className="text-xs text-slate-500">
                 {currentUser?.role === 'admin'

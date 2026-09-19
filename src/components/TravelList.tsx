@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { TravelPlace, FilterOptions, ServiceGroupInfo, TravelCity } from '../types';
+import { TravelPlace, FilterOptions, ServiceGroupInfo, TravelCity, ServiceGroup } from '../types';
 import { SERVICE_GROUPS, SERVICE_GROUPS_MAP, DISTANCE_FILTER_OPTIONS } from '../lib/geoUtils';
 import { PlaceSvgThumbnail } from './PlaceSvgThumbnail';
 import {
@@ -23,6 +23,8 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   RotateCcw,
+  Palette,
+  Check,
 } from 'lucide-react';
 
 interface TravelListProps {
@@ -43,6 +45,7 @@ interface TravelListProps {
   onDeletePlace: (id: string) => void;
   onToggleSidebarCollapse?: () => void;
   isSidebarCollapsed?: boolean;
+  onUpdateGroupColor?: (groupId: ServiceGroup, color: string) => void;
 }
 
 export const TravelList: React.FC<TravelListProps> = ({
@@ -61,8 +64,11 @@ export const TravelList: React.FC<TravelListProps> = ({
   onOpenDetailModal,
   onToggleSidebarCollapse,
   isSidebarCollapsed,
+  onUpdateGroupColor,
 }) => {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [isColorPaletteOpen, setIsColorPaletteOpen] = useState(false);
+  const [selectedColorGroup, setSelectedColorGroup] = useState<ServiceGroup>('du_lich');
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const listContainerRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef(0);
@@ -397,16 +403,126 @@ export const TravelList: React.FC<TravelListProps> = ({
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                 <Filter className="w-3 h-3 text-teal-600" /> Nhóm dịch vụ
               </span>
-              {filters.group !== 'all' && (
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => onFilterChange({ group: 'all' })}
-                  className="text-[10px] text-teal-600 font-bold hover:underline"
+                  onClick={() => setIsColorPaletteOpen((prev) => !prev)}
+                  className={`text-[10px] font-bold flex items-center gap-1 px-1.5 py-0.5 rounded transition cursor-pointer border ${
+                    isColorPaletteOpen
+                      ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                      : 'bg-white text-teal-700 hover:bg-teal-50 border-teal-200 shadow-2xs'
+                  }`}
+                  title="Đổi màu ghim icon nhóm trên bản đồ"
                 >
-                  Chọn tất cả
+                  <Palette className="w-3 h-3" />
+                  <span>Đổi màu icon</span>
                 </button>
-              )}
+                {filters.group !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => onFilterChange({ group: 'all' })}
+                    className="text-[10px] text-teal-600 font-bold hover:underline"
+                  >
+                    Chọn tất cả
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* EXPANDABLE COLOR PALETTE PICKER FOR SERVICE GROUPS */}
+            {isColorPaletteOpen && (
+              <div className="p-2 bg-white rounded-xl border border-teal-200/90 shadow-sm space-y-2 mt-1 mb-1.5 animate-fadeIn">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-slate-700 flex items-center gap-1">
+                    <Palette className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Chọn nhóm cần đổi màu icon:</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400">Thay đổi ngay trên bản đồ</span>
+                </div>
+
+                {/* Group Selector Pills */}
+                <div className="flex flex-wrap gap-1">
+                  {activeGroups.map((g) => {
+                    const isTarget = selectedColorGroup === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setSelectedColorGroup(g.id)}
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer border ${
+                          isTarget
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs ring-1 ring-slate-400'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+                        }`}
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full inline-block shrink-0 shadow-xs border border-white"
+                          style={{ backgroundColor: g.markerColor }}
+                        />
+                        <span>{g.icon}</span>
+                        <span>{g.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Color Swatches */}
+                {(() => {
+                  const targetGroup = activeGroups.find((g) => g.id === selectedColorGroup) || activeGroups[0];
+                  const currentColor = targetGroup.markerColor || '#059669';
+                  const presets = [
+                    { name: 'Xanh ngọc lục bảo', hex: '#059669' },
+                    { name: 'Xanh ngọc tươi', hex: '#10b981' },
+                    { name: 'Xanh mòng két', hex: '#0d9488' },
+                    { name: 'Xanh đại dương', hex: '#0284c7' },
+                    { name: 'Xanh hoàng gia', hex: '#2563eb' },
+                    { name: 'Cam hoàng hôn', hex: '#ea580c' },
+                    { name: 'Đỏ thắm', hex: '#dc2626' },
+                    { name: 'Hồng ruby', hex: '#e11d48' },
+                    { name: 'Tím mộng mơ', hex: '#9333ea' },
+                    { name: 'Vàng hổ phách', hex: '#d97706' },
+                    { name: 'Xanh non', hex: '#65a30d' },
+                    { name: 'Xám thanh lịch', hex: '#64748b' },
+                  ];
+
+                  return (
+                    <div className="pt-1 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold text-slate-500 shrink-0">Bảng màu:</span>
+                      {presets.map((p) => {
+                        const isChosen = currentColor.toLowerCase() === p.hex.toLowerCase();
+                        return (
+                          <button
+                            key={p.hex}
+                            type="button"
+                            onClick={() => onUpdateGroupColor?.(selectedColorGroup, p.hex)}
+                            className={`w-5 h-5 rounded-full transition transform hover:scale-120 cursor-pointer flex items-center justify-center shadow-xs border ${
+                              isChosen ? 'ring-2 ring-slate-800 scale-115 border-white' : 'border-black/10'
+                            }`}
+                            style={{ backgroundColor: p.hex }}
+                            title={`${p.name} (${p.hex})`}
+                          >
+                            {isChosen && <Check className="w-3 h-3 text-white drop-shadow-xs" />}
+                          </button>
+                        );
+                      })}
+                      {/* Native Custom Color Picker */}
+                      <label
+                        className="cursor-pointer relative flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded border border-slate-200"
+                        title="Chọn mã màu tùy ý"
+                      >
+                        <span>Tùy chọn:</span>
+                        <input
+                          type="color"
+                          value={currentColor}
+                          onChange={(e) => onUpdateGroupColor?.(selectedColorGroup, e.target.value)}
+                          className="w-4 h-4 rounded cursor-pointer border-0 p-0 bg-transparent"
+                        />
+                      </label>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
               <button

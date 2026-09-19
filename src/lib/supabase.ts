@@ -302,7 +302,21 @@ export const loadLocalGroups = (): ServiceGroupInfo[] => {
     const raw = localStorage.getItem(LOCAL_STORAGE_GROUPS_KEY);
     if (!raw) return SERVICE_GROUPS;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : SERVICE_GROUPS;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      // Migrate old or missing du_lich color to fresh #059669
+      const migrated = parsed.map((g: ServiceGroupInfo) => {
+        if (g.id === 'du_lich' && (g.markerColor === '#428c85' || !g.markerColor)) {
+          return {
+            ...g,
+            markerColor: '#059669',
+            badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+          };
+        }
+        return g;
+      });
+      return migrated;
+    }
+    return SERVICE_GROUPS;
   } catch (e) {
     return SERVICE_GROUPS;
   }
@@ -333,8 +347,8 @@ export const fetchGroupsFromSupabase = async (): Promise<ServiceGroupInfo[]> => 
         id: g.id as ServiceGroup,
         label: g.name || g.label || g.id,
         icon: g.icon || '📍',
-        badgeBg: g.badge_bg || 'bg-slate-100 text-slate-800 border-slate-300',
-        markerColor: g.marker_color || '#0d9488',
+        badgeBg: g.badge_bg || (g.id === 'du_lich' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-800 border-slate-300'),
+        markerColor: g.marker_color === '#428c85' ? '#059669' : (g.marker_color || (g.id === 'du_lich' ? '#059669' : '#0d9488')),
         description: g.description || '',
       }));
       saveLocalGroups(groups);
@@ -867,7 +881,7 @@ export const fetchReviewsFromSupabase = async (
   }
 
   try {
-    let query = client.from('travel_reviews_logs').select('*').order('created_at', { ascending: false });
+    let query = client.from('travel_reviews_logs').select('*, travel_locations(name)').order('created_at', { ascending: false });
     if (locationId) {
       query = query.eq('location_id', locationId);
     }
@@ -882,6 +896,7 @@ export const fetchReviewsFromSupabase = async (
         userEmail: r.user_email || undefined,
         userName: r.user_name || undefined,
         locationId: r.location_id,
+        locationName: r.travel_locations?.name,
         visitedAt: r.visited_at,
         rating: Number(r.rating) || 5,
         actualExpense: Number(r.actual_expense) || 0,

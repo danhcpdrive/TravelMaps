@@ -18,10 +18,10 @@ export const SERVICE_GROUPS_MAP: Record<ServiceGroup, ServiceGroupMeta> = {
     label: 'Du lịch & Thắng cảnh',
     iconName: 'Palmtree',
     icon: '🏖️',
-    badgeBg: 'bg-[#ecf7f5] text-[#133a36] border-[#c2eae6]',
-    badgeText: 'text-[#133a36]',
-    badgeBorder: 'border-[#c2eae6]',
-    markerColor: '#428c85',
+    badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+    badgeText: 'text-emerald-800',
+    badgeBorder: 'border-emerald-300',
+    markerColor: '#059669',
     desc: 'Danh lam thắng cảnh, di tích lịch sử, bãi biển, núi rừng, điểm check-in sống ảo',
   },
   an_uong: {
@@ -71,7 +71,7 @@ export const SERVICE_GROUPS_MAP: Record<ServiceGroup, ServiceGroupMeta> = {
 };
 
 export const SERVICE_GROUPS = [
-  { id: 'du_lich' as ServiceGroup, label: 'Du lịch & Thắng cảnh', icon: '🏖️', badgeBg: 'bg-[#ecf7f5] text-[#133a36] border-[#c2eae6]', markerColor: '#428c85', description: 'Danh lam thắng cảnh, di tích lịch sử, bãi biển, núi rừng, điểm check-in sống ảo' },
+  { id: 'du_lich' as ServiceGroup, label: 'Du lịch & Thắng cảnh', icon: '🏖️', badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-300', markerColor: '#059669', description: 'Danh lam thắng cảnh, di tích lịch sử, bãi biển, núi rừng, điểm check-in sống ảo' },
   { id: 'an_uong' as ServiceGroup, label: 'Ẩm thực & Quán ăn', icon: '🍜', badgeBg: 'bg-[#fff1ee] text-[#5c1b10] border-[#fbc1b4]', markerColor: '#df6d53', description: 'Món ăn đặc sản địa phương, nhà hàng, quán ăn ngon, ẩm thực đường phố, cafe' },
   { id: 'dich_vu' as ServiceGroup, label: 'Khách sạn & Tiện ích', icon: '🏨', badgeBg: 'bg-[#f0f6ff] text-[#19304a] border-[#cadbfc]', markerColor: '#5e95cc', description: 'Khách sạn, Resort, Homestay, trạm xăng, thuê xe, dịch vụ y tế, hỗ trợ du khách' },
   { id: 'giai_tri' as ServiceGroup, label: 'Vui chơi & Giải trí', icon: '🎡', badgeBg: 'bg-[#f9f2ff] text-[#3b2057] border-[#ebd9fc]', markerColor: '#a37ec9', description: 'Công viên chủ đề, rạp chiếu phim, bar pub, khu thể thao mạo hiểm, ca nhạc' },

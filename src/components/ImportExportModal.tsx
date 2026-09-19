@@ -7,31 +7,38 @@ import {
   TravelTrip,
 } from '../types';
 import {
-  X,
   Upload,
   Download,
-  Copy,
-  Check,
-  FileJson,
   Database,
+  FileJson,
+  Check,
+  Copy,
   AlertCircle,
+  X,
   Trash2,
-  CheckCircle2,
-  MapPin,
   Building,
-  ArrowRight,
+  MapPin,
   FileText,
+  ArrowRight,
+  CheckCircle2,
   HelpCircle,
+  Layers,
+  Code,
 } from 'lucide-react';
 import { parseSqlScript, ParsedSqlResult } from '../lib/sqlParser';
 import {
-  saveLocalCities,
-  saveLocalGroups,
   saveLocalReviews,
   saveLocalExpenses,
   saveLocalTrips,
-  getSupabaseClient,
 } from '../lib/supabase';
+import {
+  formatPlacesToSqlViewJson,
+  formatToRelationalDatabaseJson,
+  generateSqlScriptFromData,
+  parseSynchronizedJson,
+  ParsedJsonResult,
+} from '../lib/jsonSyncUtils';
+import { DEFAULT_CITIES } from '../lib/geoUtils';
 
 export interface ExtraImportData {
   cities?: TravelCity[];
@@ -44,28 +51,42 @@ interface ImportExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   places: TravelPlace[];
+  cities?: TravelCity[];
+  reviews?: TravelReviewLog[];
+  expenses?: TravelExpense[];
+  trips?: TravelTrip[];
   onImport: (importedPlaces: TravelPlace[], extraData?: ExtraImportData) => Promise<void> | void;
   onClearAll?: () => void;
 }
 
 type TabType = 'sql' | 'json_import' | 'json_export';
+type ExportFormatType = 'sql_view_json' | 'relational_json' | 'sql_script';
 
 export const ImportExportModal: React.FC<ImportExportModalProps> = ({
   isOpen,
   onClose,
   places,
+  cities = DEFAULT_CITIES,
+  reviews = [],
+  expenses = [],
+  trips = [],
   onImport,
   onClearAll,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('sql');
 
-  // JSON State
+  // JSON Import State
   const [jsonText, setJsonText] = useState('');
+  const [syncJsonCities, setSyncJsonCities] = useState(true);
+  const [syncJsonExtra, setSyncJsonExtra] = useState(true);
 
-  // SQL State
+  // SQL Import State
   const [sqlText, setSqlText] = useState('');
   const [syncCities, setSyncCities] = useState(true);
   const [syncReviewsExpenses, setSyncReviewsExpenses] = useState(true);
+
+  // Export State
+  const [exportFormat, setExportFormat] = useState<ExportFormatType>('sql_view_json');
 
   // Common UI State
   const [isProcessing, setIsProcessing] = useState(false);
@@ -80,222 +101,216 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
     if (!sqlText || !sqlText.trim()) return null;
     try {
       return parseSqlScript(sqlText);
-    } catch (e) {
+    } catch {
       return null;
     }
   }, [sqlText]);
 
+  // Parsed JSON Results (reactive to jsonText)
+  const parsedJson = useMemo<ParsedJsonResult | null>(() => {
+    if (!jsonText || !jsonText.trim()) return null;
+    try {
+      return parseSynchronizedJson(jsonText, cities);
+    } catch {
+      return null;
+    }
+  }, [jsonText, cities]);
+
+  // Generated Export Content (reactive to exportFormat, places, cities, etc.)
+  const exportData = useMemo(() => {
+    if (exportFormat === 'sql_view_json') {
+      const records = formatPlacesToSqlViewJson(places, cities);
+      return {
+        text: JSON.stringify(records, null, 2),
+        filename: `travel_places_view_sql_${Date.now()}.json`,
+        mime: 'application/json',
+        count: records.length,
+      };
+    } else if (exportFormat === 'relational_json') {
+      const backup = formatToRelationalDatabaseJson(places, cities, reviews, expenses, trips);
+      return {
+        text: JSON.stringify(backup, null, 2),
+        filename: `travel_maps_relational_backup_${Date.now()}.json`,
+        mime: 'application/json',
+        count: backup.summary.locations_count,
+      };
+    } else {
+      const sql = generateSqlScriptFromData(places, cities, reviews, expenses, trips);
+      return {
+        text: sql,
+        filename: `travel_maps_backup_${Date.now()}.sql`,
+        mime: 'text/plain',
+        count: places.length,
+      };
+    }
+  }, [exportFormat, places, cities, reviews, expenses, trips]);
+
   if (!isOpen) return null;
 
   // ---------------------------------------------------------------------------
-  // JSON IMPORT HANDLERS
-  // ---------------------------------------------------------------------------
-  const handleJsonFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      setJsonText(content);
-      setErrorMsg('');
-      setSuccessCount(null);
-    };
-    reader.readAsText(file);
-  };
-
-  const handleJsonImportSubmit = async () => {
-    setErrorMsg('');
-    setSuccessCount(null);
-
-    if (!jsonText.trim()) {
-      setErrorMsg('Vui lòng dán nội dung JSON hoặc chọn file JSON.');
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(jsonText);
-      if (!Array.isArray(parsed)) {
-        setErrorMsg('Dữ liệu JSON phải là một mảng danh sách [ ... ].');
-        return;
-      }
-
-      if (parsed.length === 0) {
-        setErrorMsg('Mảng JSON rỗng.');
-        return;
-      }
-
-      const validPlaces: TravelPlace[] = parsed.map((item: any, idx: number) => {
-        const id = item.id || `place-${Date.now()}-${idx}`;
-        const name = item.name || 'Địa điểm chưa tên';
-        const rawLat = item.coordinates?.lat !== undefined ? item.coordinates.lat : item.lat;
-        const rawLng = item.coordinates?.lng !== undefined ? item.coordinates.lng : item.lng;
-        const parsedLat = Number(rawLat);
-        const parsedLng = Number(rawLng);
-        const lat = !isNaN(parsedLat) && parsedLat !== 0 ? parsedLat : 16.0544;
-        const lng = !isNaN(parsedLng) && parsedLng !== 0 ? parsedLng : 108.2022;
-
-        return {
-          id,
-          name,
-          group: item.group || 'du_lich',
-          category: item.category || 'Địa điểm',
-          coordinates: { lat, lng },
-          address: item.address || '',
-          contact: item.contact || '',
-          phone: item.phone || '',
-          rating: item.rating ? Number(item.rating) : 4.8,
-          priceRange: item.priceRange || item.price_range || '',
-          openingHours: item.openingHours || item.opening_hours || '',
-          bestTimeToVisit: item.bestTimeToVisit || item.best_time_to_visit || '',
-          notes: item.notes || '',
-          travelTips: item.travelTips || item.travel_tips || '',
-          specialties: item.specialties || '',
-          thumbnailUrl: item.thumbnailUrl || item.thumbnail_url || '',
-          galleryUrls: Array.isArray(item.galleryUrls)
-            ? item.galleryUrls
-            : Array.isArray(item.gallery_urls)
-            ? item.gallery_urls
-            : [],
-          website: item.website || item.website_url || '',
-          checked: Boolean(item.checked),
-          isFavorite: Boolean(item.isFavorite || item.is_favorite),
-          visitedAt: item.visitedAt || item.visited_at || null,
-          distanceKm: item.distanceKm || 0,
-        };
-      });
-
-      setIsProcessing(true);
-      await onImport(validPlaces);
-      setIsProcessing(false);
-      setSuccessCount(validPlaces.length);
-      setJsonText('');
-
-      setTimeout(() => {
-        onClose();
-      }, 1400);
-    } catch (err: any) {
-      setIsProcessing(false);
-      const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
-      setErrorMsg(`Lỗi định dạng JSON: ${msg}`);
-    }
-  };
-
-  // ---------------------------------------------------------------------------
-  // SQL IMPORT HANDLERS
+  // HANDLERS: SQL IMPORT
   // ---------------------------------------------------------------------------
   const handleSqlFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setErrorMsg('');
+    setSuccessCount(null);
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
       setSqlText(content);
-      setErrorMsg('');
-      setSuccessCount(null);
+    };
+    reader.onerror = () => {
+      setErrorMsg('Không thể đọc file SQL. Vui lòng kiểm tra định dạng file.');
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   const handleSqlImportSubmit = async () => {
-    setErrorMsg('');
-    setSuccessCount(null);
-
-    if (!sqlText.trim()) {
-      setErrorMsg('Vui lòng chọn file .sql hoặc dán câu lệnh SQL.');
-      return;
-    }
-
-    if (!parsedSql || parsedSql.places.length === 0) {
-      setErrorMsg('Không tìm thấy câu lệnh INSERT INTO travel_locations hợp lệ trong mã SQL.');
+    if (!sqlText || !sqlText.trim()) {
+      setErrorMsg('Vui lòng dán câu lệnh SQL hoặc tải file .sql lên.');
       return;
     }
 
     try {
       setIsProcessing(true);
-      setProgressMsg(`Đang xử lý ${parsedSql.places.length} địa điểm và dữ liệu liên quan...`);
+      setErrorMsg('');
+      setProgressMsg('Đang phân tích cú pháp SQL...');
 
-      // 1. Ensure Cities are synced to database to satisfy foreign key constraints (travel_locations_city_id_fkey)
-      if (parsedSql.cities.length > 0) {
-        saveLocalCities(parsedSql.cities);
-        const sb = getSupabaseClient();
-        if (sb) {
-          try {
-            await sb.from('travel_cities').upsert(
-              parsedSql.cities.map((c) => ({
-                id: c.id,
-                name: c.name,
-                code: c.code || '',
-                lat: c.lat || 0,
-                lng: c.lng || 0,
-                sort_order: c.sort_order || 0,
-              })),
-              { onConflict: 'id' }
-            );
-          } catch (e) {
-            console.warn('Supabase cities sync warning:', e);
-          }
-        }
+      const result = parseSqlScript(sqlText);
+
+      if (result.places.length === 0 && result.cities.length === 0) {
+        setErrorMsg('Không tìm thấy bản ghi travel_locations hoặc travel_cities hợp lệ trong kịch bản SQL.');
+        setIsProcessing(false);
+        return;
       }
 
-      // 2. Sync Groups if present
-      if (parsedSql.groups.length > 0) {
-        saveLocalGroups(parsedSql.groups);
-      }
+      setProgressMsg(`Đang nhập ${result.places.length} địa điểm vào hệ thống...`);
 
-      // 3. Sync Reviews & Expenses if selected
       if (syncReviewsExpenses) {
-        if (parsedSql.reviews.length > 0) {
-          saveLocalReviews(parsedSql.reviews);
-        }
-        if (parsedSql.expenses.length > 0) {
-          saveLocalExpenses(parsedSql.expenses);
-        }
-        if (parsedSql.trips.length > 0) {
-          saveLocalTrips(parsedSql.trips);
-        }
+        if (result.reviews.length > 0) saveLocalReviews(result.reviews);
+        if (result.expenses.length > 0) saveLocalExpenses(result.expenses);
+        if (result.trips.length > 0) saveLocalTrips(result.trips);
       }
 
-      // 4. Pass places and extra data to App
-      await onImport(parsedSql.places, {
-        cities: syncCities ? parsedSql.cities : undefined,
-        reviews: syncReviewsExpenses ? parsedSql.reviews : undefined,
-        expenses: syncReviewsExpenses ? parsedSql.expenses : undefined,
-        trips: syncReviewsExpenses ? parsedSql.trips : undefined,
+      await onImport(result.places, {
+        cities: syncCities ? result.cities : undefined,
+        reviews: syncReviewsExpenses ? result.reviews : undefined,
+        expenses: syncReviewsExpenses ? result.expenses : undefined,
+        trips: syncReviewsExpenses ? result.trips : undefined,
       });
 
+      setSuccessCount(result.places.length);
       setIsProcessing(false);
-      setSuccessCount(parsedSql.places.length);
-
-      setTimeout(() => {
-        onClose();
-      }, 1500);
+      setProgressMsg('');
     } catch (err: any) {
+      console.error('SQL Import error:', err);
+      setErrorMsg(err.message || 'Lỗi khi phân tích hoặc nhập dữ liệu SQL.');
       setIsProcessing(false);
-      const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
-      setErrorMsg(`Lỗi trong quá trình Import SQL: ${msg}`);
+      setProgressMsg('');
     }
   };
 
   // ---------------------------------------------------------------------------
-  // EXPORT JSON HANDLERS
+  // HANDLERS: JSON IMPORT
   // ---------------------------------------------------------------------------
-  const handleExportDownload = () => {
-    const dataStr =
-      'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(places, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `travel_maps_export_${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  const handleJsonFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setErrorMsg('');
+    setSuccessCount(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setJsonText(content);
+    };
+    reader.onerror = () => {
+      setErrorMsg('Không thể đọc file JSON. Vui lòng kiểm tra lại.');
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
-  const handleCopyText = (textToCopy: string) => {
-    navigator.clipboard.writeText(textToCopy);
+  const handleJsonImportSubmit = async () => {
+    if (!jsonText || !jsonText.trim()) {
+      setErrorMsg('Vui lòng dán chuỗi JSON hoặc tải file .json lên.');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setErrorMsg('');
+      setProgressMsg('Đang đồng bộ cấu trúc dữ liệu JSON với CSDL SQL...');
+
+      const parsed = parseSynchronizedJson(jsonText, cities);
+
+      if (parsed.places.length === 0 && parsed.cities.length === 0) {
+        setErrorMsg('Không tìm thấy dữ liệu địa điểm hợp lệ trong file JSON.');
+        setIsProcessing(false);
+        return;
+      }
+
+      setProgressMsg(`Đang nạp ${parsed.places.length} địa điểm đồng bộ vào hệ thống...`);
+
+      if (syncJsonExtra) {
+        if (parsed.reviews.length > 0) saveLocalReviews(parsed.reviews);
+        if (parsed.expenses.length > 0) saveLocalExpenses(parsed.expenses);
+        if (parsed.trips.length > 0) saveLocalTrips(parsed.trips);
+      }
+
+      await onImport(parsed.places, {
+        cities: syncJsonCities && parsed.cities.length > 0 ? parsed.cities : undefined,
+        reviews: syncJsonExtra && parsed.reviews.length > 0 ? parsed.reviews : undefined,
+        expenses: syncJsonExtra && parsed.expenses.length > 0 ? parsed.expenses : undefined,
+        trips: syncJsonExtra && parsed.trips.length > 0 ? parsed.trips : undefined,
+      });
+
+      setSuccessCount(parsed.places.length);
+      setIsProcessing(false);
+      setProgressMsg('');
+    } catch (e: any) {
+      console.error('JSON Import failed:', e);
+      setErrorMsg(e.message || 'Dữ liệu JSON không hợp lệ hoặc sai cấu trúc.');
+      setIsProcessing(false);
+      setProgressMsg('');
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // HANDLERS: EXPORT & COPY
+  // ---------------------------------------------------------------------------
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleDownloadExport = () => {
+    const blob = new Blob([exportData.text], { type: exportData.mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = exportData.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const formatBadgeText = (format?: string) => {
+    switch (format) {
+      case 'relational_database':
+        return 'CSDL Quan Hệ (travel_locations + travel_location_details)';
+      case 'sql_view_array':
+        return 'Chuẩn SQL View (travel_places_view)';
+      case 'custom_object':
+        return 'Gói Sao Lưu CSDL Toàn Diện';
+      default:
+        return 'Mảng Địa Điểm JSON';
+    }
   };
 
   return (
@@ -316,10 +331,10 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-800">
-                Import & Export Dữ Liệu Địa Điểm
+                Import & Export Dữ Liệu Đồng Bộ Chuẩn SQL
               </h2>
               <p className="text-[11px] text-slate-500">
-                Hỗ trợ nạp file SQL sao lưu hoặc file JSON
+                Tương thích 100% giữa JSON, View CSDL và bảng PostgreSQL / Supabase
               </p>
             </div>
           </div>
@@ -349,7 +364,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
             <Database className="w-4 h-4 text-teal-600" />
             <span>Import SQL (.sql)</span>
             <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-teal-100 text-teal-700 font-semibold">
-              Khuyên dùng
+              Kịch bản SQL
             </span>
           </button>
 
@@ -368,9 +383,12 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
           >
             <FileJson className="w-4 h-4 text-teal-600" />
             <span>Import JSON (.json)</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-700 font-semibold">
+              Đồng bộ CSDL
+            </span>
           </button>
 
-          {/* Tab 3: Export JSON */}
+          {/* Tab 3: Export */}
           <button
             onClick={() => {
               setActiveTab('json_export');
@@ -384,7 +402,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
             }`}
           >
             <Download className="w-4 h-4 text-teal-600" />
-            <span>Export Dữ Liệu</span>
+            <span>Export Dữ Liệu (JSON & SQL)</span>
             <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-700 font-semibold">
               {places.length}
             </span>
@@ -646,7 +664,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
           )}
 
           {/* ================================================================= */}
-          {/* TAB 2: IMPORT JSON */}
+          {/* TAB 2: IMPORT JSON (ĐỒNG BỘ CẤU TRÚC VỚI CSDL SQL) */}
           {/* ================================================================= */}
           {activeTab === 'json_import' && (
             <div className="space-y-4">
@@ -666,25 +684,155 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                     Bấm để chọn file <span className="text-teal-600 font-bold">.json</span> từ máy tính
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    Định dạng hỗ trợ mảng đối tượng địa điểm du lịch, ăn uống, dịch vụ
+                    Tự động nhận diện cấu trúc CSDL quan hệ (<code className="text-teal-700 font-mono">travel_locations</code> + <code className="text-teal-700 font-mono">details</code>) hoặc cấu trúc View SQL (<code className="text-teal-700 font-mono">travel_places_view</code>)
                   </p>
                 </label>
               </div>
 
               {/* Paste JSON */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Hoặc dán chuỗi JSON trực tiếp vào đây:
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Hoặc dán chuỗi JSON trực tiếp vào đây:
+                  </label>
+                  {jsonText && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-slate-500">
+                        {jsonText.length.toLocaleString()} ký tự
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setJsonText('')}
+                        className="text-[11px] text-red-500 hover:text-red-700 transition"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <textarea
-                  rows={8}
+                  rows={6}
                   value={jsonText}
-                  onChange={(e) => setJsonText(e.target.value)}
-                  placeholder={`[\n  {\n    "id": "place-01",\n    "name": "Bánh Mì Phượng Hội An",\n    "group": "an_uong",\n    "category": "Đặc sản ẩm thực",\n    "coordinates": {\n      "lat": 15.8794,\n      "lng": 108.3328\n    },\n    "address": "2B Phan Châu Trinh, Hội An",\n    "rating": 4.8,\n    "priceRange": "30.000đ - 65.000đ",\n    "checked": false\n  }\n]`}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white"
+                  onChange={(e) => {
+                    setJsonText(e.target.value);
+                    setErrorMsg('');
+                    setSuccessCount(null);
+                  }}
+                  placeholder={`Dán JSON mảng địa điểm [ ... ] hoặc file backup CSDL toàn diện { "tables": { "travel_locations": [...], "travel_location_details": [...] } }`}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white"
                 />
               </div>
 
+              {/* JSON Live Parsing Breakdown */}
+              {parsedJson && (
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-bold text-slate-800">
+                        Phân Tích Cấu Trúc JSON Hợp Lệ:
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                      {formatBadgeText(parsedJson.formatDetected)}
+                    </span>
+                  </div>
+
+                  {/* Summary Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex flex-col">
+                      <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-teal-600" /> Địa điểm
+                      </span>
+                      <span className="text-base font-bold text-slate-900">
+                        {parsedJson.summary.placesCount}
+                      </span>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex flex-col">
+                      <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                        <Building className="w-3 h-3 text-blue-600" /> Tỉnh / Thành
+                      </span>
+                      <span className="text-base font-bold text-slate-900">
+                        {parsedJson.summary.citiesCount}
+                      </span>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex flex-col">
+                      <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                        ✍️ Đánh giá
+                      </span>
+                      <span className="text-base font-bold text-slate-900">
+                        {parsedJson.summary.reviewsCount}
+                      </span>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-white border border-slate-200 flex flex-col">
+                      <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                        💰 Chi tiêu & Lịch trình
+                      </span>
+                      <span className="text-base font-bold text-slate-900">
+                        {parsedJson.summary.expensesCount + parsedJson.summary.tripsCount}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Preview Places */}
+                  {parsedJson.places.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200/80">
+                      <span className="text-[11px] font-semibold text-slate-600 mb-1.5 block">
+                        Xem trước địa điểm nhận diện:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                        {parsedJson.places.slice(0, 6).map((p, idx) => (
+                          <span
+                            key={idx}
+                            className="text-[11px] px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 flex items-center gap-1"
+                          >
+                            <span>📍</span>
+                            <strong className="font-medium truncate max-w-[140px]">{p.name}</strong>
+                            {p.cityName && <span className="text-slate-400 text-[10px]">({p.cityName})</span>}
+                          </span>
+                        ))}
+                        {parsedJson.places.length > 6 && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-500">
+                            +{parsedJson.places.length - 6} địa điểm khác...
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Options */}
+                  <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-4 text-xs">
+                    {parsedJson.cities.length > 0 && (
+                      <label className="flex items-center space-x-1.5 cursor-pointer text-slate-700 select-none">
+                        <input
+                          type="checkbox"
+                          checked={syncJsonCities}
+                          onChange={(e) => setSyncJsonCities(e.target.checked)}
+                          className="rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+                        />
+                        <span>Đồng bộ danh mục tỉnh thành ({parsedJson.cities.length})</span>
+                      </label>
+                    )}
+
+                    {(parsedJson.reviews.length > 0 || parsedJson.expenses.length > 0 || parsedJson.trips.length > 0) && (
+                      <label className="flex items-center space-x-1.5 cursor-pointer text-slate-700 select-none">
+                        <input
+                          type="checkbox"
+                          checked={syncJsonExtra}
+                          onChange={(e) => setSyncJsonExtra(e.target.checked)}
+                          className="rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+                        />
+                        <span>Đồng bộ đánh giá, chi tiêu & lịch trình</span>
+                      </label>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Error Message */}
               {errorMsg && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
@@ -692,10 +840,13 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                 </div>
               )}
 
+              {/* Success Message */}
               {successCount !== null && (
-                <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 text-xs flex items-center gap-2">
-                  <Check className="w-4 h-4 shrink-0 text-teal-600" />
-                  <span>Đã nhập thành công {successCount} địa điểm vào hệ thống!</span>
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>
+                    Đã nhập thành công <strong>{successCount}</strong> địa điểm từ JSON vào hệ thống!
+                  </span>
                 </div>
               )}
 
@@ -708,12 +859,17 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                 {isProcessing ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Đang nhập dữ liệu...</span>
+                    <span>{progressMsg || 'Đang nhập dữ liệu...'}</span>
                   </>
                 ) : (
                   <>
                     <Upload className="w-4 h-4" />
-                    <span>Xác nhận Import JSON</span>
+                    <span>
+                      {parsedJson && parsedJson.places.length > 0
+                        ? `Xác nhận Import ${parsedJson.places.length} Địa Điểm vào Hệ Thống`
+                        : 'Xác nhận Import JSON'}
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 ml-1" />
                   </>
                 )}
               </button>
@@ -721,40 +877,113 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
           )}
 
           {/* ================================================================= */}
-          {/* TAB 3: EXPORT JSON */}
+          {/* TAB 3: EXPORT DỮ LIỆU ĐỒNG BỘ CHUẨN SQL & JSON */}
           {/* ================================================================= */}
           {activeTab === 'json_export' && (
             <div className="space-y-4">
-              <p className="text-xs text-slate-600">
-                Xuất toàn bộ <strong className="text-slate-900">{places.length}</strong> địa điểm du lịch & ẩm thực thành file chuẩn JSON để lưu trữ hoặc chia sẻ.
-              </p>
+              
+              {/* Format Switcher */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 block">
+                  Chọn định dạng xuất dữ liệu đồng bộ với CSDL:
+                </label>
 
-              <div className="relative">
-                <textarea
-                  rows={10}
-                  readOnly
-                  value={JSON.stringify(places, null, 2)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {/* Option 1: SQL View JSON */}
+                  <button
+                    type="button"
+                    onClick={() => setExportFormat('sql_view_json')}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                      exportFormat === 'sql_view_json'
+                        ? 'border-teal-500 bg-teal-50/70 text-teal-950 ring-1 ring-teal-500'
+                        : 'border-slate-200 bg-white hover:border-slate-300 text-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileJson className="w-4 h-4 text-teal-600 shrink-0" />
+                      <span className="text-xs font-bold">Chuẩn View SQL (.json)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Mảng JSON đồng bộ chính xác các cột của View <code className="font-mono text-teal-700">travel_places_view</code>
+                    </p>
+                  </button>
+
+                  {/* Option 2: Relational DB JSON */}
+                  <button
+                    type="button"
+                    onClick={() => setExportFormat('relational_json')}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                      exportFormat === 'relational_json'
+                        ? 'border-teal-500 bg-teal-50/70 text-teal-950 ring-1 ring-teal-500'
+                        : 'border-slate-200 bg-white hover:border-slate-300 text-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Layers className="w-4 h-4 text-teal-600 shrink-0" />
+                      <span className="text-xs font-bold">CSDL Quan Hệ (.json)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Tách biệt các bảng CSDL: <code className="font-mono text-teal-700">travel_locations</code>, <code className="font-mono text-teal-700">details</code>, <code className="font-mono text-teal-700">cities</code>...
+                    </p>
+                  </button>
+
+                  {/* Option 3: SQL Script */}
+                  <button
+                    type="button"
+                    onClick={() => setExportFormat('sql_script')}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                      exportFormat === 'sql_script'
+                        ? 'border-teal-500 bg-teal-50/70 text-teal-950 ring-1 ring-teal-500'
+                        : 'border-slate-200 bg-white hover:border-slate-300 text-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Code className="w-4 h-4 text-teal-600 shrink-0" />
+                      <span className="text-xs font-bold">Kịch Bản SQL (.sql)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Câu lệnh <code className="font-mono text-teal-700">INSERT INTO</code> PostgreSQL / Supabase có sẵn <code className="font-mono text-teal-700">ON CONFLICT</code>
+                    </p>
+                  </button>
+                </div>
               </div>
 
+              {/* Data Preview Textarea */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <span>
+                    Tổng cộng: <strong className="text-slate-800">{exportData.count}</strong> địa điểm ({exportData.filename})
+                  </span>
+                  <span>{exportData.text.length.toLocaleString()} ký tự</span>
+                </div>
+                <div className="relative">
+                  <textarea
+                    rows={9}
+                    readOnly
+                    value={exportData.text}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
               <div className="flex items-center space-x-3">
                 <button
                   type="button"
-                  onClick={() => handleCopyText(JSON.stringify(places, null, 2))}
+                  onClick={() => handleCopyText(exportData.text)}
                   className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center gap-2 border border-slate-200 transition cursor-pointer"
                 >
                   {copied ? <Check className="w-4 h-4 text-teal-600" /> : <Copy className="w-4 h-4" />}
-                  <span>{copied ? 'Đã sao chép!' : 'Sao chép JSON'}</span>
+                  <span>{copied ? 'Đã sao chép vào bộ nhớ đệm!' : 'Sao chép nội dung'}</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleExportDownload}
+                  onClick={handleDownloadExport}
                   className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Tải File .JSON</span>
+                  <span>Tải File ({exportData.filename.endsWith('.sql') ? '.SQL' : '.JSON'})</span>
                 </button>
               </div>
             </div>

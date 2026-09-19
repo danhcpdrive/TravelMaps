@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TravelPlace, UserProfile } from '../types';
+import { TravelPlace, UserProfile, TravelReviewLog } from '../types';
 import { SERVICE_GROUPS_MAP, formatCoordinate } from '../lib/geoUtils';
 import { PlaceSvgThumbnail } from './PlaceSvgThumbnail';
 import {
@@ -45,6 +45,7 @@ interface TravelDetailModalProps {
   onOpenReportModal?: (place: TravelPlace) => void;
   onRequireAuth?: (message: string) => void;
   onViewOnMap?: (place: TravelPlace) => void;
+  reviews: TravelReviewLog[];
 }
 
 export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
@@ -61,9 +62,13 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
   onOpenReportModal,
   onRequireAuth,
   onViewOnMap,
+  reviews,
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isImageError, setIsImageError] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'reviews'>('info');
+
+  const placeReviews = reviews.filter((r) => String(r.locationId) === String(place?.id));
 
   useEffect(() => {
     setIsImageError(false);
@@ -100,8 +105,9 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
   const gallery = place.galleryUrls && place.galleryUrls.length > 0 ? place.galleryUrls : [];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden text-slate-900 animate-in fade-in zoom-in duration-200 my-auto max-h-[90vh] flex flex-col">
+    <>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+        <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden text-slate-900 animate-in fade-in zoom-in duration-200 my-auto max-h-[90vh] flex flex-col">
         
         {/* Top Header Banner: Real Image or High Quality SVG Vector Banner */}
         {place.thumbnailUrl && !isImageError ? (
@@ -221,7 +227,6 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
 
         {/* Modal Scrollable Content */}
         <div className="p-5 sm:p-6 space-y-4 flex-1 overflow-y-auto text-sm">
-          
           {/* Check-in Banner & Quick Actions */}
           <div
             className={`p-3.5 rounded-xl border flex items-center justify-between transition ${
@@ -607,34 +612,33 @@ export const TravelDetailModal: React.FC<TravelDetailModalProps> = ({
             </button>
           </div>
         </div>
-
       </div>
-
-      {/* Lightbox Modal for Image Zoom */}
-      {selectedImage && (
-        <div
-          className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-4 backdrop-blur-md"
-          onClick={() => setSelectedImage(null)}
-        >
-          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
-            <img
-              src={selectedImage}
-              alt="Ảnh phóng to"
-              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
-              referrerPolicy="no-referrer"
-            />
-            <button
-              type="button"
-              onClick={() => setSelectedImage(null)}
-              className="mt-3 px-4 py-1.5 rounded-full bg-white/20 hover:bg-white/40 text-white text-xs font-medium backdrop-blur-md transition"
-            >
-              Nhấn ra ngoài hoặc bấm đây để đóng
-            </button>
-          </div>
-        </div>
-      )}
-
     </div>
+
+    {/* Lightbox Modal for Image Zoom */}
+    {selectedImage && (
+      <div
+        className="fixed inset-0 z-[110] bg-black/90 flex items-center justify-center p-4 backdrop-blur-md"
+        onClick={() => setSelectedImage(null)}
+      >
+        <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+          <img
+            src={selectedImage}
+            alt="Ảnh phóng to"
+            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+            referrerPolicy="no-referrer"
+          />
+          <button
+            type="button"
+            onClick={() => setSelectedImage(null)}
+            className="mt-3 px-4 py-1.5 rounded-full bg-white/20 hover:bg-white/40 text-white text-xs font-medium backdrop-blur-md transition"
+          >
+            Nhấn ra ngoài hoặc bấm đây để đóng
+          </button>
+        </div>
+      </div>
+    )}
+  </>
   );
 };
 

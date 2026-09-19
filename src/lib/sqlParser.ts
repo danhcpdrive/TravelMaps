@@ -429,6 +429,7 @@ export function parseSqlScript(rawSql: string): ParsedSqlResult {
     userEmail: r.user_email ? String(r.user_email) : undefined,
     userName: r.user_name ? String(r.user_name) : undefined,
     locationId: String(r.location_id || r.locationid || ''),
+    locationName: r.travel_locations?.name || r.location_name || r.locationname || undefined,
     visitedAt: String(r.visited_at || r.visitedat || new Date().toISOString()),
     rating: Number(r.rating) || 5,
     actualExpense: Number(r.actual_expense || r.actualexpense) || 0,
